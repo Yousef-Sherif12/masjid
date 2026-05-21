@@ -3,7 +3,7 @@ import 'package:intl/intl.dart' as intl;
 
 class DateHelper {
   // 👇 تقدر تغيّرها من SharedPreferences بعد كده
-  static int hijriOffset = -1; // -1 أو +1 حسب الرؤية
+  static int hijriOffset = 0; // -1 أو +1 حسب الرؤية
 
   static String formatDate(DateTime now) {
     const months = [

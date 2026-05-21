@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:masjid/enums/adhkar_type_enum.dart';
 import 'package:masjid/enums/app_state_enum.dart';
 import 'package:masjid/enums/app_theme_enum.dart';
+import 'package:masjid/firebase_options.dart';
 import 'package:masjid/screens/Adhan_Screen.dart';
 import 'package:masjid/screens/iqama_screen.dart';
 import 'package:masjid/services/iqama_service.dart';
@@ -24,9 +28,17 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await initializeDateFormatting('ar', null);
   WakelockPlus.enable();
-
+  // await FirebaseFirestore.instance
+  //     .collection('settings')
+  //     .doc('live_display')
+  //     .set({
+  //       'collection': '',
+  //       'docId': '',
+  //       'active': false,
+  //     }, SetOptions(merge: true)); // merge عشان ميمسحش اللي موجود
   runApp(const MyApp());
 }
 
@@ -60,8 +72,15 @@ class VideoBackground extends StatefulWidget {
 
 class _VideoBackgroundState extends State<VideoBackground> {
   VideoPlayerController? _controller;
+  List<Map<String, dynamic>> _activeCollections = [];
+
   final AudioPlayer _audioPlayer = AudioPlayer();
   AppThemeEnum currentTheme = AppThemeEnum.newLightTheme;
+
+  // Live Display
+  Message? _liveMessage;
+  bool _isLiveDisplay = false;
+  StreamSubscription? _liveDisplaySubscription;
 
   DayPrayer? todayPrayerData;
   Map<String, int> iqamaTimes = {};
@@ -75,75 +94,224 @@ class _VideoBackgroundState extends State<VideoBackground> {
   Timer? _clockTimer;
   Timer? _adhkarTimer;
 
-  List<Message> quranMessages = [];
-  List<Message> hadithMessages = [];
-  List<Message> faniMessages = [];
-  List<Message> prayerFromQuranMessages = [];
-  List<Message> thaqilMessages = [];
+  // List<Message> quranMessages = [];
+  // List<Message> hadithMessages = [];
+  // List<Message> faniMessages = [];
+  // List<Message> prayerFromQuranMessages = [];
+  // List<Message> thaqilMessages = [];
 
   List<Message> adhkarMessages = [];
   List<Message> adhkarSalahMessages = [];
   List<Message> adhkarSabahMessages = [];
   List<Message> adhkarMasaMessages = [];
+  Map<String, List<Message>> _collectionMessages = {};
+  List<String> _activeCollectionKeys = [];
+  Map<String, int> _collectionIndices = {};
 
   int adhkarIndex = 0;
-  int quranIndex = 0;
-  int thaqilIndex = 0;
-  int hadithIndex = 0;
-  int faniIndex = 0;
+  // int quranIndex = 0;
+  // int thaqilIndex = 0;
+  // int hadithIndex = 0;
+  // int faniIndex = 0;
   int contentTypeIndex = 0;
-  int prayerFromQuranIndex = 0;
+  // int prayerFromQuranIndex = 0;
+
+  bool isManualIqama = false; // عشان نفرق بين النوعين
 
   DateTime _now = DateTime.now();
 
   // ✅ cached countdown - مش بيتحسب في كل build
   Map<String, dynamic> _cachedCountdown = {"name": "-", "h": 0, "m": 0, "s": 0};
-
   Message? get currentMainMessage {
-    switch (contentTypeIndex) {
-      case 0:
-        return quranMessages.isNotEmpty ? quranMessages[quranIndex] : null;
-      case 1:
-        return hadithMessages.isNotEmpty ? hadithMessages[hadithIndex] : null;
-      case 2:
-        return prayerFromQuranMessages.isNotEmpty
-            ? prayerFromQuranMessages[prayerFromQuranIndex]
-            : null;
-      case 3:
-        return thaqilMessages.isNotEmpty ? thaqilMessages[thaqilIndex] : null;
-      default:
-        return null;
-    }
+    if (_activeCollectionKeys.isEmpty) return null;
+    final key =
+        _activeCollectionKeys[contentTypeIndex % _activeCollectionKeys.length];
+
+    final messages = _collectionMessages[key] ?? [];
+    if (messages.isEmpty) return null;
+    final index = _collectionIndices[key] ?? 0;
+    return messages[index % messages.length];
   }
 
+  // Message? get currentMainMessage {
+  //   switch (contentTypeIndex) {
+  //     case 0:
+  //       return quranMessages.isNotEmpty ? quranMessages[quranIndex] : null;
+  //     case 1:
+  //       return hadithMessages.isNotEmpty ? hadithMessages[hadithIndex] : null;
+  //     case 2:
+  //       return prayerFromQuranMessages.isNotEmpty
+  //           ? prayerFromQuranMessages[prayerFromQuranIndex]
+  //           : null;
+  //     case 3:
+  //       return thaqilMessages.isNotEmpty ? thaqilMessages[thaqilIndex] : null;
+  //     default:
+  //       return null;
+  //   }
+  // }
   void _nextContent() {
-    switch (contentTypeIndex) {
-      case 0:
-        quranIndex = (quranIndex + 1) % quranMessages.length;
-        break;
-      case 1:
-        hadithIndex = (hadithIndex + 1) % hadithMessages.length;
-        break;
-      case 2:
-        prayerFromQuranIndex =
-            (prayerFromQuranIndex + 1) % prayerFromQuranMessages.length;
-        break; // ✅
-      case 3:
-        thaqilIndex = (thaqilIndex + 1) % thaqilMessages.length;
-        break;
+    if (_activeCollectionKeys.isEmpty) return;
+    final key =
+        _activeCollectionKeys[contentTypeIndex % _activeCollectionKeys.length];
+    final messages = _collectionMessages[key] ?? [];
+    if (messages.isNotEmpty) {
+      final currentIndex = _collectionIndices[key] ?? 0;
+      _collectionIndices[key] = (currentIndex + 1) % messages.length;
     }
-    contentTypeIndex = (contentTypeIndex + 1) % 4; // ✅ 4 محتويات
+    contentTypeIndex = (contentTypeIndex + 1) % _activeCollectionKeys.length;
+  }
+  // void _nextContent() {
+  //   switch (contentTypeIndex) {
+  //     case 0:
+  //       quranIndex = (quranIndex + 1) % quranMessages.length;
+  //       break;
+  //     case 1:
+  //       hadithIndex = (hadithIndex + 1) % hadithMessages.length;
+  //       break;
+  //     case 2:
+  //       prayerFromQuranIndex =
+  //           (prayerFromQuranIndex + 1) % prayerFromQuranMessages.length;
+  //       break; // ✅
+  //     case 3:
+  //       thaqilIndex = (thaqilIndex + 1) % thaqilMessages.length;
+  //       break;
+  //   }
+  //   contentTypeIndex = (contentTypeIndex + 1) % 4; // ✅ 4 محتويات
+  // }
+
+  StreamSubscription? _collectionsSubscription;
+  void _listenToCollectionsChanges() {
+    _collectionsSubscription = FirebaseFirestore.instance
+        .collection('collections_config')
+        .snapshots()
+        .listen((snapshot) async {
+          if (!mounted) return;
+
+          final newActiveKeys =
+              snapshot.docs
+                  .where((doc) => doc.data()['active'] == true)
+                  .toList()
+                ..sort(
+                  (a, b) => (a.data()['order'] ?? 0).compareTo(
+                    b.data()['order'] ?? 0,
+                  ),
+                );
+
+          final keys = newActiveKeys.map((doc) => doc.id).toList();
+
+          if (keys.toString() != _activeCollectionKeys.toString()) {
+            // ✅ امسح كاش الـ collections
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('cache_active_collections');
+
+            final Map<String, List<Message>> messages = {};
+            for (final key in keys) {
+              messages[key] =
+                  _collectionMessages[key] ??
+                  await IqamaService.getCollectionMessages(key);
+            }
+
+            if (!mounted) return;
+
+            final newIndices = {for (final k in keys) k: 0};
+
+            setState(() {
+              _activeCollectionKeys = keys;
+              _collectionMessages = messages;
+              _collectionIndices = newIndices;
+              contentTypeIndex = 0;
+
+              // ✅ ضيف السطر ده
+              _activeCollections =
+                  snapshot.docs
+                      .where((doc) => doc.data()['active'] == true)
+                      .map((doc) => {'id': doc.id, ...doc.data()})
+                      .toList()
+                    ..sort(
+                      (a, b) => (a['order'] ?? 0).compareTo(b['order'] ?? 0),
+                    );
+            });
+            timer?.cancel();
+            startTimer();
+          }
+        });
+  }
+
+  void _listenToLiveDisplay() {
+    _liveDisplaySubscription = FirebaseFirestore.instance
+        .collection('settings')
+        .doc('live_display')
+        .snapshots()
+        .listen((snapshot) {
+          if (!mounted) return;
+          final data = snapshot.data();
+
+          // 1. لو الأدمن قفل العرض (active == false)
+          if (data == null || data['active'] != true) {
+            if (_isLiveDisplay) {
+              // لو كانت الرسالة معروضة فعلاً
+              setState(() {
+                _isLiveDisplay = false;
+                _liveMessage = null;
+              });
+              startTimer(); // رجّع التايمر العادي يشتغل لعرض المحتوى الدوري
+            }
+            return;
+          }
+
+          // 2. استخراج البيانات من Firebase
+          final collection = data['collection'] as String;
+          final docId = data['docId'] as String;
+          if (collection.isEmpty || docId.isEmpty) return;
+
+          final allMessages = {
+            ..._collectionMessages, // ✅ ديناميكي
+            'adhkar_salah': adhkarSalahMessages,
+            'adhkar_sabah': adhkarSabahMessages,
+            'adhkar_masa': adhkarMasaMessages,
+          };
+          // final allMessages = {
+          //   'quran_messages': quranMessages,
+          //   'hadith_messages': hadithMessages,
+          //   'thaqil': thaqilMessages,
+          //   'prayer_from_quran': prayerFromQuranMessages,
+          //   'adhkar_salah': adhkarSalahMessages,
+          //   'adhkar_sabah': adhkarSabahMessages,
+          //   'adhkar_masa': adhkarMasaMessages,
+          // };
+
+          // 3. البحث عن الرسالة المطلوبة
+          Message? found;
+          final list = allMessages[collection];
+          if (list != null) {
+            try {
+              found = list.firstWhere((msg) => msg.docId == docId);
+            } catch (e) {
+              found = null;
+            }
+          }
+
+          // 4. عرض الرسالة وإيقاف التايمر الدوري
+          if (found != null) {
+            timer?.cancel(); // وقف عرض القرآن/الحديث الدوري
+            setState(() {
+              _liveMessage = found;
+              _isLiveDisplay = true;
+            });
+          }
+        });
   }
 
   void startTimer() {
     timer?.cancel();
     final current = currentMainMessage;
+
     if (current == null) {
-      // ✅ skip ومتوقفش
-      _nextContent();
+      _nextContent(); // ✅ skip بدل ما يوقف
       startTimer();
       return;
     }
+
     timer = Timer(current.duration, () {
       if (!mounted) return;
       setState(() => _nextContent());
@@ -184,10 +352,8 @@ class _VideoBackgroundState extends State<VideoBackground> {
     adhkarIndex = 0;
 
     if (isManualAdhkar) {
-      // 👈 تشغيل من زرار
       adhkarMessages = _getAdhkarByType();
     } else {
-      // 👈 تشغيل تلقائي حسب الصلاة
       adhkarMessages = _getAdhkarForPrayer(currentPrayerName);
     }
 
@@ -217,7 +383,7 @@ class _VideoBackgroundState extends State<VideoBackground> {
     _adhkarTimer?.cancel();
 
     isManualAdhkar = true; // 👈 أهم سطر
-
+    isManualIqama = false;
     adhkarIndex = 0;
     currentAdhkarType = AdhkarType.sabah;
     adhkarMessages = _getAdhkarByType();
@@ -233,7 +399,7 @@ class _VideoBackgroundState extends State<VideoBackground> {
     _adhkarTimer?.cancel();
 
     isManualAdhkar = true;
-
+    isManualIqama = false;
     adhkarIndex = 0;
     currentAdhkarType = AdhkarType.masa;
     adhkarMessages = _getAdhkarByType();
@@ -249,18 +415,27 @@ class _VideoBackgroundState extends State<VideoBackground> {
     if (_lastTriggeredPrayer == prayerName) return;
     _lastTriggeredPrayer = prayerName;
     currentPrayerName = prayerName;
-    setState(() => appState = AppState.adhan);
+    _controller?.play();
+    setState(() {
+      _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+
+      appState = AppState.adhan;
+    });
     try {
-      _audioPlayer.play(AssetSource('audios/adhan.mp3'));
+      if (currentPrayerName != 'الشروق') {
+        _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+
+        _audioPlayer.play(AssetSource('audios/adhan.mp3'));
+      }
       // ignore: empty_catches
     } catch (e) {}
     final int delay;
     if (currentPrayerName == 'الشروق') {
       delay = 3;
     } else {
-      delay = 60*3;
+      delay = 60 * 3;
     }
-    Future.delayed( Duration(seconds: delay), () {
+    Future.delayed(Duration(seconds: delay), () {
       if (!mounted) return;
       _audioPlayer.stop();
       _controller?.play();
@@ -284,9 +459,14 @@ class _VideoBackgroundState extends State<VideoBackground> {
       final timeStr = todayPrayerData!.times[prayerName];
       if (timeStr == null) continue;
       final prayerTime = PrayerService.parseTime(timeStr, now);
-      if (now.hour == prayerTime.hour && now.minute == prayerTime.minute) {
+      // if (now.hour == prayerTime.hour && now.minute == prayerTime.minute) {
+      //   _triggerAdhan(prayerName);
+      //   return;
+      // }
+      final diff = prayerTime.difference(now).inSeconds;
+
+      if (diff <= 0 && diff > -60) {
         _triggerAdhan(prayerName);
-        return;
       }
     }
   }
@@ -300,19 +480,60 @@ class _VideoBackgroundState extends State<VideoBackground> {
     final iqamaMinutes = iqamaTimes[currentPrayerName] ?? 10;
     final iqamaTime = prayerTime.add(Duration(minutes: iqamaMinutes));
     final diff = iqamaTime.difference(now);
-    if (diff.isNegative) return '00:00';
-    final m = diff.inMinutes.toString().padLeft(2, '0');
-    final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
+
+    if (diff.isNegative || diff.inSeconds <= 0) return '00:00';
+
+    // ✅ الحساب الصح بالثواني
+    final totalSeconds = diff.inSeconds;
+    final m = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final s = (totalSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
   }
+  // String _getIqamaCountdown() {
+  //   if (todayPrayerData == null) return '';
+  //   final now = DateTime.now();
+  //   final timeStr = todayPrayerData!.times[currentPrayerName];
+  //   if (timeStr == null) return '';
+  //   final prayerTime = PrayerService.parseTime(timeStr, now);
+  //   final iqamaMinutes = iqamaTimes[currentPrayerName] ?? 10;
+  //   final iqamaTime = prayerTime.add(Duration(minutes: iqamaMinutes));
+  //   final diff = iqamaTime.difference(now);
+  //   if (diff.isNegative) return '00:00';
+  //   final m = diff.inMinutes.toString().padLeft(2, '0');
+  //   final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
+  //   return '$m:$s';
+  // }
 
-  void _switchToIqama() => setState(() => appState = AppState.iqama);
+  void _switchToIqama() {
+    setState(() {
+      appState = AppState.iqama;
+      isManualIqama = false;
+    });
+
+    // حساب الوقت بناءً على الصلاة الحالية
+    String currentPrayer = PrayerService.getCurrentPrayerName(todayPrayerData);
+    int delayMinutes = (currentPrayer == "الفجر" || currentPrayer == "العشاء")
+        ? 15
+        : 11;
+    if (currentPrayer == 'الشروق') delayMinutes = 5;
+
+    // تايمر الخروج التلقائي حتى للضغط اليدوي
+    Future.delayed(Duration(minutes: delayMinutes), () {
+      if (!mounted) return;
+      // لو لسه على شاشة الإقامة ومحدش غير الحالة يدوياً لحاجة تانية
+      if (appState == AppState.iqama) {
+        setState(() => appState = AppState.adhkar);
+        _startAdhkarTimer();
+      }
+    });
+  }
+
   void _switchToAdhkar() {
     _adhkarTimer?.cancel();
 
     adhkarIndex = 0;
     isManualAdhkar = true; // تفعيل الوضع اليدوي لضمان عدم تداخل الأوقات
-
+    isManualIqama = false;
     // تحديد النوع صراحةً كأذكار صلاة مفروضة
     currentAdhkarType = AdhkarType.salah;
     adhkarMessages = _getAdhkarByType();
@@ -327,6 +548,8 @@ class _VideoBackgroundState extends State<VideoBackground> {
   void _switchToNormal() {
     _controller?.play(); // ✅
     setState(() => appState = AppState.normal);
+    isManualAdhkar = false;
+    isManualIqama = false;
   } // void _switchToAdhan() => setState(() => appState = AppState.adhan);
 
   final FocusNode _focusNode = FocusNode();
@@ -368,8 +591,10 @@ class _VideoBackgroundState extends State<VideoBackground> {
         return "assets/videos/bg1.mp4";
       case AppThemeEnum.theme4:
         return "assets/videos/bg3.mp4";
-      case AppThemeEnum.theme5:
-        return "assets/videos/bg4.mp4";
+      case AppThemeEnum.hajTheme:
+        return "assets/videos/haram3.mp4";
+      case AppThemeEnum.hajTheme2:
+        return "assets/videos/haram2.mp4";
     }
   }
 
@@ -391,10 +616,18 @@ class _VideoBackgroundState extends State<VideoBackground> {
   Future<void> _changeTheme(AppThemeEnum newTheme) async {
     if (currentTheme == newTheme) return;
 
+    // ✅ إيقاف صوت تكبيرات العيد (أو أي صوت شغال) فور تغيير الثيم
+    await _audioPlayer.stop();
+    await _audioPlayer.setReleaseMode(ReleaseMode.release);
+
     currentTheme = newTheme;
     await saveTheme(newTheme);
-    await _controller!.pause();
-    await _controller!.dispose();
+
+    // 🚨 تم حذف سطر getAttributes الخطأ من هنا
+    if (_controller != null) {
+      await _controller!.pause();
+      await _controller!.dispose();
+    }
 
     _controller = VideoPlayerController.asset(_getVideoPath());
 
@@ -409,10 +642,31 @@ class _VideoBackgroundState extends State<VideoBackground> {
 
     setState(() {});
   }
+  // Future<void> _changeTheme(AppThemeEnum newTheme) async {
+  //   if (currentTheme == newTheme) return;
+
+  //   currentTheme = newTheme;
+  //   await saveTheme(newTheme);
+  //   await _controller?.pause();
+  //   await _controller?.dispose();
+
+  //   _controller = VideoPlayerController.asset(_getVideoPath());
+
+  //   await _controller!.initialize();
+
+  //   if (!mounted) return;
+
+  //   _controller!
+  //     ..setLooping(true)
+  //     ..setVolume(0)
+  //     ..play();
+
+  //   setState(() {});
+  // }
 
   Future<void> saveTheme(AppThemeEnum theme) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('theme', theme.name); // 👈 important
+    await prefs.setString('theme', theme.name);
   }
 
   Future<AppThemeEnum> loadTheme() async {
@@ -428,19 +682,78 @@ class _VideoBackgroundState extends State<VideoBackground> {
   }
 
   Future<void> _initApp() async {
-    // 1. هات الثيم
     currentTheme = await loadTheme();
 
-    // 2. حضّر الفيديو
     await _initVideo();
 
-    // 3. حمّل الداتا
     _loadAllData();
 
-    // 4. شغّل التايمر
     _startClockTimer();
 
-    setState(() {}); // 👈 مهم عشان يعمل rebuild بعد التحميل
+    setState(() {});
+  }
+
+  // upload_data.dart - شغّله مرة واحدة بس
+  Future<void> uploadAllJsons() async {
+    final db = FirebaseFirestore.instance;
+
+    final collections = {
+      'quran_messages': 'assets/jsons/quran_messages.json',
+      'hadith_messages': 'assets/jsons/hadith_messages.json',
+      'prayer_from_quran': 'assets/jsons/prayer_from_quran.json',
+      'thaqil': 'assets/jsons/thaqil.json',
+      'adhkar_salah': 'assets/jsons/adhkar_salah.json',
+      'adhkar_sabah': 'assets/jsons/sabah_adhkar.json',
+      'adhkar_masa': 'assets/jsons/masaa_adhkar.json',
+    };
+
+    for (final entry in collections.entries) {
+      try {
+        await _uploadMessages(db, entry.key, entry.value);
+        // ignore: empty_catches
+      } catch (e) {}
+    }
+    try {
+      await _uploadIqama(db);
+      await db.collection('settings').doc('versions').set({
+        'messages_version': 1,
+        'prayers_version': 1,
+        'iqama_version': 1,
+      });
+      // ignore: empty_catches
+    } catch (e) {}
+  }
+
+  Future<void> _uploadMessages(
+    FirebaseFirestore db,
+    String collectionName,
+    String jsonPath,
+  ) async {
+    final String response = await rootBundle.loadString(jsonPath);
+    final List<dynamic> data = json.decode(response);
+
+    // احذف القديم الأول
+    final existing = await db.collection(collectionName).get();
+    for (final doc in existing.docs) {
+      await doc.reference.delete();
+    }
+
+    // ارفع الجديد
+    for (int i = 0; i < data.length; i++) {
+      await db.collection(collectionName).add({
+        ...data[i],
+        'order': i, // ✅ مهم للترتيب
+      });
+    }
+  }
+
+  Future<void> _uploadIqama(FirebaseFirestore db) async {
+    final String response = await rootBundle.loadString(
+      'assets/jsons/iqama_times.json',
+    );
+    final Map<String, dynamic> data = json.decode(response);
+
+    await db.collection('settings').doc('iqama_times').set(data);
   }
 
   @override
@@ -448,6 +761,10 @@ class _VideoBackgroundState extends State<VideoBackground> {
     super.initState();
 
     _initApp();
+    // uploadAllJsons();
+    _listenToVersionChanges();
+    _listenToCollectionsChanges(); // ✅
+    _listenToLiveDisplay();
 
     ServicesBinding.instance.keyboard.addHandler(_onGlobalKey);
     WidgetsBinding.instance.addPostFrameCallback(
@@ -455,64 +772,215 @@ class _VideoBackgroundState extends State<VideoBackground> {
     );
   }
 
-  void _loadAllData() async {
-    final prayers = await PrayerService.getTodayPrayers();
-    final iqama = await IqamaService.getIqamaTimes();
-    final quran = await IqamaService.getQuranMessages();
-    final hadith = await IqamaService.getHadithMessages();
-    final thaqil = await IqamaService.getThaqil();
-    final prayerFromQuran = await IqamaService.getPrayerFromQuran();
+  void _listenToVersionChanges() {
+    FirebaseFirestore.instance
+        .collection('settings')
+        .doc('versions')
+        .snapshots()
+        .listen((snapshot) async {
+          if (!mounted) return;
+          final data = snapshot.data();
+          if (data == null) return;
+
+          final prefs = await SharedPreferences.getInstance();
+          final localVersion = prefs.getInt('messages_version') ?? 0;
+          final remoteVersion = (data['messages_version'] ?? 0) as int;
+
+          if (remoteVersion > localVersion) {
+            // ✅ امسح كل الكاش بما فيه collections
+            prefs
+                .getKeys()
+                .where((k) => k.startsWith('cache_'))
+                .forEach((k) => prefs.remove(k));
+
+            await prefs.setInt('messages_version', remoteVersion);
+            IqamaService.resetSessionCache();
+            await _reloadMessages();
+          }
+        });
+  }
+
+  Future<void> _reloadMessages() async {
+    // ✅ أول حاجة — جيب الـ collections النشطة الجديدة
+    final activeCollections = await IqamaService.getActiveCollections();
+    final keys = activeCollections.map((c) => c['id'] as String).toList();
+
+    final Map<String, List<Message>> messages = {};
+    for (final key in keys) {
+      messages[key] = await IqamaService.getCollectionMessages(key);
+    }
+
     final salah = await IqamaService.getAdhkarSalah();
     final sabah = await IqamaService.getAdhkarSabah();
     final masa = await IqamaService.getAdhkarMasa();
 
     if (!mounted) return;
 
+    final newIndices = {for (final k in keys) k: 0};
+
     setState(() {
-      todayPrayerData = prayers;
-      iqamaTimes = iqama;
-      quranMessages = quran;
-      hadithMessages = hadith;
-      thaqilMessages = thaqil;
-      prayerFromQuranMessages = prayerFromQuran;
+      _activeCollections = activeCollections; // ✅
+      _activeCollectionKeys = keys;
+      _collectionMessages = messages;
+      _collectionIndices = newIndices;
+      contentTypeIndex = 0;
       adhkarSalahMessages = salah;
       adhkarSabahMessages = sabah;
       adhkarMasaMessages = masa;
-
-      startTimer(); // هنا مرة واحدة بس
     });
+
+    // ✅ أعد تشغيل التايمر
+    timer?.cancel();
+    startTimer();
+  }
+  // Future<void> _reloadMessages() async {
+  //   final quran = await IqamaService.getQuranMessages();
+  //   final hadith = await IqamaService.getHadithMessages();
+  //   final thaqil = await IqamaService.getThaqil();
+  //   final prayerFromQuran = await IqamaService.getPrayerFromQuran();
+  //   final salah = await IqamaService.getAdhkarSalah(); // ✅
+  //   final sabah = await IqamaService.getAdhkarSabah(); // ✅
+  //   final masa = await IqamaService.getAdhkarMasa(); // ✅
+
+  //   if (!mounted) return;
+  //   setState(() {
+  //     quranMessages = quran;
+  //     hadithMessages = hadith;
+  //     thaqilMessages = thaqil;
+  //     prayerFromQuranMessages = prayerFromQuran;
+  //     adhkarSalahMessages = salah; // ✅
+  //     adhkarSabahMessages = sabah; // ✅
+  //     adhkarMasaMessages = masa; // ✅
+  //   });
+
+  // }
+
+  String get currentCollectionLabel {
+    print('🏷️ _activeCollections: $_activeCollections');
+    print('🏷️ _activeCollectionKeys: $_activeCollectionKeys');
+    print('🏷️ contentTypeIndex: $contentTypeIndex');
+
+    if (_activeCollectionKeys.isEmpty) return '';
+    final key =
+        _activeCollectionKeys[contentTypeIndex % _activeCollectionKeys.length];
+    print('🏷️ looking for key: $key');
+
+    final col = _activeCollections.firstWhere(
+      (c) => c['id'] == key,
+      orElse: () => {'label': ''},
+    );
+    print('🏷️ found col: $col');
+    print('🏷️ label: ${col['label']}');
+
+    return col['label']?.toString() ?? '';
   }
 
+  void _loadAllData() async {
+    final prayers = await PrayerService.getTodayPrayers();
+    final iqama = await IqamaService.getIqamaTimes();
+
+    // ✅ جيب النشطين بس بدل الـ hardcoded
+    final activeCollections = await IqamaService.getActiveCollections();
+    final keys = activeCollections.map((c) => c['id'] as String).toList();
+
+    final Map<String, List<Message>> messages = {};
+    for (final key in keys) {
+      messages[key] = await IqamaService.getCollectionMessages(key);
+    }
+
+    final salah = await IqamaService.getAdhkarSalah();
+    final sabah = await IqamaService.getAdhkarSabah();
+    final masa = await IqamaService.getAdhkarMasa();
+
+    if (!mounted) return;
+
+    final newIndices = {for (final k in keys) k: 0};
+
+    setState(() {
+      todayPrayerData = prayers;
+      iqamaTimes = iqama;
+      _activeCollectionKeys = keys;
+      _activeCollections = activeCollections; // ✅ ضيف السطر ده
+
+      _collectionMessages = messages;
+      _collectionIndices = newIndices;
+      contentTypeIndex = 0;
+      adhkarSalahMessages = salah;
+      adhkarSabahMessages = sabah;
+      adhkarMasaMessages = masa;
+      startTimer();
+    });
+  }
+  // void _loadAllData() async {
+  //   final prayers = await PrayerService.getTodayPrayers();
+  //   final iqama = await IqamaService.getIqamaTimes();
+  //   final quran = await IqamaService.getQuranMessages();
+  //   final hadith = await IqamaService.getHadithMessages();
+  //   final thaqil = await IqamaService.getThaqil();
+  //   final prayerFromQuran = await IqamaService.getPrayerFromQuran();
+  //   final salah = await IqamaService.getAdhkarSalah();
+  //   final sabah = await IqamaService.getAdhkarSabah();
+  //   final masa = await IqamaService.getAdhkarMasa();
+
+  //   if (!mounted) return;
+  //   setState(() {
+  //     todayPrayerData = prayers;
+  //     iqamaTimes = iqama;
+  //     quranMessages = quran;
+  //     hadithMessages = hadith;
+  //     thaqilMessages = thaqil;
+  //     prayerFromQuranMessages = prayerFromQuran;
+  //     adhkarSalahMessages = salah;
+  //     adhkarSabahMessages = sabah;
+  //     adhkarMasaMessages = masa;
+
+  //     startTimer();
+  //   });
+  //   // setState(() {
+  //   //   todayPrayerData = prayers;
+  //   //   iqamaTimes = iqama;
+  //   //   quranMessages = quran;
+  //   //   hadithMessages = hadith;
+  //   //   thaqilMessages = thaqil;
+  //   //   prayerFromQuranMessages = prayerFromQuran;
+  //   //   adhkarSalahMessages = salah;
+  //   //   adhkarSabahMessages = sabah;
+  //   //   adhkarMasaMessages = masa;
+
+  //   //   startTimer(); // هنا مرة واحدة بس
+  //   // });
+  // }
+  DateTime? _lastLoadedDay;
   void _startClockTimer() {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
         _now = DateTime.now();
         _cachedCountdown = PrayerService.calculateCountdown(todayPrayerData);
+        final today = DateTime(_now.year, _now.month, _now.day);
+
+        if (_lastLoadedDay == null || today != _lastLoadedDay) {
+          _lastLoadedDay = today;
+          _reloadPrayerTimes();
+        }
         if (appState == AppState.iqamaCount) {
           _iqamaCountdown = _getIqamaCountdown();
+          // ابحث عن الجزء ده داخل _startClockTimer وتأكد إنه كدا:
           if (_iqamaCountdown == '00:00') {
-            appState = AppState.iqama;
-            //!
-            //?
-            ///
+            setState(() => appState = AppState.iqama);
+
             String currentPrayer = PrayerService.getCurrentPrayerName(
               todayPrayerData,
             );
+            int delayMinutes =
+                (currentPrayer == "الفجر" || currentPrayer == "العشاء")
+                ? 15
+                : 11;
+            if (currentPrayer == 'الشروق') delayMinutes = 5;
 
-            int delayMinutes;
-            if (currentPrayer == "الفجر" || currentPrayer == "العشاء") {
-              delayMinutes = 15;
-            } else if (currentPrayer == 'الشروق') {
-              delayMinutes = 5;
-            } else {
-              delayMinutes = 11;
-            }
-
-            // 2. الانتظار قبل الانتقال لصفحة الأذكار
             Future.delayed(Duration(minutes: delayMinutes), () {
               if (!mounted) return;
-              // التأكد إننا لسه في حالة الإقامة قبل ما ننقل للأذكار
+              // بينقل للأذكار لو لسه الحالة إقامة ومفيش أذكار يدوية شغالة
               if (appState == AppState.iqama && !isManualAdhkar) {
                 setState(() => appState = AppState.adhkar);
                 _startAdhkarTimer();
@@ -525,6 +993,21 @@ class _VideoBackgroundState extends State<VideoBackground> {
     });
   }
 
+  Future<void> _reloadPrayerTimes() async {
+    // ✅ بس استدعي التحميل من جديد
+    final prayers = await PrayerService.getTodayPrayers();
+
+    if (!mounted) return;
+    setState(() {
+      todayPrayerData = prayers;
+      _lastTriggeredPrayer = null; // ✅ مهم — يسمح بأذان الفجر
+    });
+
+    print(
+      '✅ تم تحديث أوقات الصلاة: ${DateTime.now().day}/${DateTime.now().month}',
+    );
+  }
+
   @override
   void dispose() {
     ServicesBinding.instance.keyboard.removeHandler(_onGlobalKey);
@@ -532,8 +1015,11 @@ class _VideoBackgroundState extends State<VideoBackground> {
     _clockTimer?.cancel();
     _adhkarTimer?.cancel();
     _audioPlayer.dispose();
-    _controller!.dispose();
+    // _controller!.dispose();
     _focusNode.dispose();
+    _collectionsSubscription?.cancel();
+    _liveDisplaySubscription?.cancel();
+
     super.dispose();
   }
 
@@ -553,12 +1039,16 @@ class _VideoBackgroundState extends State<VideoBackground> {
           if (keyName == 'ColorF0Red' ||
               key == LogicalKeyboardKey.keyA ||
               key.keyId == 0x100070001) {
+            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+
             _switchToIqama();
             return KeyEventResult.handled;
           }
           if (keyName == 'ColorF1Green' ||
               key == LogicalKeyboardKey.keyS ||
               key.keyId == 0x100070002) {
+            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+
             _switchToAdhkar();
             return KeyEventResult.handled;
           }
@@ -575,29 +1065,52 @@ class _VideoBackgroundState extends State<VideoBackground> {
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit0) {
+            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _switchToNormal();
 
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit1) {
+            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.oldTheme);
 
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit2) {
+            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.newLightTheme);
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit3) {
+            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.newDarkTheme);
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit4) {
+            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.theme4);
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit5) {
-            _changeTheme(AppThemeEnum.theme5);
+            // بنستدعي تغيير الثيم، ولما يخلص (تنتهي الـ Future) بنشغل الصوت
+            _changeTheme(AppThemeEnum.hajTheme).then((_) {
+              try {
+                _audioPlayer.setReleaseMode(ReleaseMode.loop);
+                _audioPlayer.play(
+                  AssetSource(
+                    'audios/takbeerat.mp3',
+                  ), // المسار الصحيح بدون assets/
+                );
+              } catch (e) {
+                print("Error playing takbeerat: $e");
+              }
+            });
+
+            return KeyEventResult.handled;
+          }
+          if (key == LogicalKeyboardKey.digit6) {
+            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+            _changeTheme(AppThemeEnum.hajTheme2);
             return KeyEventResult.handled;
           }
         }
@@ -605,10 +1118,8 @@ class _VideoBackgroundState extends State<VideoBackground> {
       },
       child: Scaffold(
         extendBody: true,
-
         body: Stack(
           children: [
-            // ✅ الفيديو في RepaintBoundary منفصل
             if (_controller!.value.isInitialized)
               RepaintBoundary(
                 child: SizedBox.expand(
@@ -623,19 +1134,33 @@ class _VideoBackgroundState extends State<VideoBackground> {
                 ),
               ),
 
-            // SizedBox.expand(child: FittedBox(fit: BoxFit.cover, child: Image.asset('assets/images/bg2.png'))),
-
-            // ✅ البلور في widget منفصل مش بيتأثر بالـ setState
             BlurOverlay(currentTheme: currentTheme),
+
+            // ✅ الشاشة الأساسية دايماً موجودة
             _buildMainContent(_now, _cachedCountdown),
+
+            // ✅ الأذان كـ overlay
+            if (appState == AppState.adhan)
+              Positioned.fill(
+                child: AdhanScreen(prayerName: currentPrayerName),
+              ),
+
+            // ✅ الإقامة كـ overlay
+            if (appState == AppState.iqama)
+              Positioned.fill(
+                child: IqamaScreen(prayerName: currentPrayerName),
+              ),
+
             if (appState == AppState.normal ||
                 appState == AppState.iqamaCount ||
                 appState == AppState.adhkar)
-              const Positioned(
+              Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
-                child: RepaintBoundary(child: BottomTicker()),
+                child: RepaintBoundary(
+                  child: BottomTicker(currentTheme: currentTheme),
+                ),
               ),
           ],
         ),
@@ -644,12 +1169,11 @@ class _VideoBackgroundState extends State<VideoBackground> {
   }
 
   Widget _buildMainContent(DateTime now, Map<String, dynamic> countdown) {
-    if (appState == AppState.adhan) {
-      return AdhanScreen(prayerName: currentPrayerName);
+    // ✅ لو أذان أو إقامة ارجع widget فاضي
+    if (appState == AppState.adhan || appState == AppState.iqama) {
+      return const SizedBox.shrink();
     }
-    if (appState == AppState.iqama) {
-      return IqamaScreen(prayerName: currentPrayerName);
-    }
+
     return Stack(
       children: [
         Row(
@@ -668,21 +1192,23 @@ class _VideoBackgroundState extends State<VideoBackground> {
               currentTheme: currentTheme,
             ),
             AyatColumn(
-              currentMessage: currentMainMessage,
+              currentMessage: _isLiveDisplay
+                  ? _liveMessage
+                  : currentMainMessage,
               appState: appState,
               adhkarMessages: adhkarMessages,
               adhkarIndex: adhkarIndex,
               currentTheme: currentTheme,
+              collectionLabel: currentCollectionLabel,
             ),
           ],
         ),
-        const Logo(),
+        Logo(currentTheme: currentTheme),
       ],
     );
   }
 }
 
-// ✅ widget منفصل للبلور عشان مش يتعمله rebuild مع setState
 // ignore: must_be_immutable
 class BlurOverlay extends StatelessWidget {
   BlurOverlay({super.key, required this.currentTheme});
@@ -692,10 +1218,11 @@ class BlurOverlay extends StatelessWidget {
     return Positioned.fill(
       child: RepaintBoundary(
         child: Container(
-          color:
-              currentTheme == AppThemeEnum.theme4 ||
-                  currentTheme == AppThemeEnum.theme5
+          color: currentTheme == AppThemeEnum.theme4
               ? Colors.black.withOpacity(0.8)
+              : currentTheme == AppThemeEnum.hajTheme ||
+                    currentTheme == AppThemeEnum.hajTheme2
+              ? Colors.black.withOpacity(0.65)
               : Colors.black.withOpacity(0.3),
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masjid/constants/colors.dart';
 import 'package:masjid/enums/app_state_enum.dart';
 import 'package:masjid/enums/app_theme_enum.dart';
 import 'package:masjid/widgets/Line.dart';
@@ -58,17 +59,23 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
           children: [
             const Line(height: 1),
             //التاريخ
+            SizedBox(height: 10),
             TimeAndDate(
               hijriDate: hijriDate,
               date: date,
               day: day,
               fullTime: fullTime,
+              currentTheme: currentTheme,
             ),
             Spacer(), // مواقيت الصلاة
-            const Text(
+            Text(
               'مواقيت الصلاة',
               style: TextStyle(
-                color: Color(0xffeee8aa),
+                color:
+                    currentTheme == AppThemeEnum.hajTheme ||
+                        currentTheme == AppThemeEnum.hajTheme2
+                    ? hajTextColor
+                    : Color(0xffeee8aa),
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Tajawal',
 
@@ -77,9 +84,9 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
               ),
             ),
             const Line(height: 0.7),
-            const SizedBox(height: 15),
-            const PrayerTimes(),
             const SizedBox(height: 10),
+            PrayerTimes(currentTheme: currentTheme),
+            const SizedBox(height: 7),
             NextPray(
               nextPray: nextPrayName,
               hours: hours,
@@ -87,6 +94,7 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
               sec: seconds,
               appState: appState,
               iqamaCountdown: iqamaTime,
+              currentTheme: currentTheme,
             ),
             const SizedBox(height: 5),
             const Line(height: 1),
@@ -98,18 +106,20 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
 }
 
 class TimeAndDate extends StatelessWidget {
-  const TimeAndDate({
+  TimeAndDate({
     super.key,
     required this.hijriDate,
     required this.date,
     required this.day,
     required this.fullTime,
+    required this.currentTheme,
   });
 
   final String hijriDate;
   final String date;
   final String day;
   final String fullTime;
+  AppThemeEnum currentTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -118,8 +128,14 @@ class TimeAndDate extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Date(hijriDate: hijriDate, date: date, day: day),
-          DayAndTime(day: day, fullTime: fullTime),
+          Date(
+            hijriDate: hijriDate,
+            date: date,
+            day: day,
+            currentTheme: currentTheme,
+          ),
+
+          DayAndTime(fullTime: fullTime, currentTheme: currentTheme),
         ],
       ),
     );
@@ -127,16 +143,18 @@ class TimeAndDate extends StatelessWidget {
 }
 
 class Date extends StatelessWidget {
-  const Date({
+  Date({
     super.key,
     required this.hijriDate,
     required this.date,
     required this.day,
+    required this.currentTheme,
   });
 
   final String hijriDate;
   final String date;
   final String day;
+  AppThemeEnum currentTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -147,8 +165,11 @@ class Date extends StatelessWidget {
         children: [
           Text(
             day,
-            style: const TextStyle(
-              color: Color(0xffeee8aa),
+            style: TextStyle(
+              color: currentTheme == AppThemeEnum.hajTheme||
+              currentTheme == AppThemeEnum.hajTheme2
+                  ? hajTextColor
+                  : Color(0xffeee8aa),
               fontWeight: FontWeight.w900,
               fontSize: 16,
               height: 1,
@@ -157,8 +178,11 @@ class Date extends StatelessWidget {
           Text(
             hijriDate,
             textDirection: TextDirection.rtl,
-            style: const TextStyle(
-              color: Color(0xffeee8aa),
+            style: TextStyle(
+              color: currentTheme == AppThemeEnum.hajTheme||
+              currentTheme == AppThemeEnum.hajTheme2
+                  ? hajTextColor
+                  : Color(0xffeee8aa),
               fontWeight: FontWeight.w700,
               fontSize: 15,
             ),
@@ -168,7 +192,10 @@ class Date extends StatelessWidget {
             '$dateم',
             textDirection: TextDirection.rtl,
             style: TextStyle(
-              color: Color(0xffeee8aa),
+              color: currentTheme == AppThemeEnum.hajTheme||
+              currentTheme == AppThemeEnum.hajTheme2
+                  ? hajTextColor
+                  : Color(0xffeee8aa),
               fontWeight: FontWeight.w700,
               fontSize: 18,
             ),
@@ -180,66 +207,49 @@ class Date extends StatelessWidget {
 }
 
 class DayAndTime extends StatelessWidget {
-  const DayAndTime({super.key, required this.day, required this.fullTime});
+  DayAndTime({super.key, required this.fullTime, required this.currentTheme});
 
-  final String day;
   final String fullTime;
+  AppThemeEnum currentTheme;
 
   @override
   Widget build(BuildContext context) {
+    // فصل الوقت عن (ص/م)
+    final timeParts = fullTime.split(' ');
+    final timeOnly = timeParts[0];
+
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          // day
-          // Text(
-          //   day,
-          //   style: const TextStyle(
-          //     color: Color(0xffeee8aa),
-          //     fontWeight: FontWeight.w900,
-          //     fontSize: 16,
-          //     height: 1,
-          //   ),
-          // ),
-
-          //time
-          RichText(
-            textDirection: TextDirection.rtl,
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: fullTime.split(' ')[0], // الوقت نفسه
-                  style: const TextStyle(
-                    color: Color(0xffeee8aa),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 37,
-                    height: 1,
+          SizedBox(
+            width: double.infinity,
+            height: 70, // ارتفاع مناسب للساعة في الشاشة الـ 55 بوصة
+            child: FittedBox(
+              fit: BoxFit
+                  .scaleDown, // يمنع النزول لسطر جديد ويصغر الخط عند الضرورة
+              alignment: Alignment.centerRight, // المحاذاة لليسار في نظام RTL
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    timeOnly,
+                    style: TextStyle(
+                      color: currentTheme == AppThemeEnum.hajTheme||
+              currentTheme == AppThemeEnum.hajTheme2
+                          ? hajTextColor
+                          : Color(0xffeee8aa),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 200, // حجم افتراضي كبير جداً
+                      fontFamily: 'Tajawal',
+                      height: 1,
+                    ),
                   ),
-                ),
-                TextSpan(
-                  text: ' ${fullTime.split(' ')[1]}', // ص أو م
-                  style: const TextStyle(
-                    color: Color(0xffeee8aa),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 28,
-                    height: 1,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          // Text(
-          //   fullTime,
-          //   textDirection: TextDirection.rtl,
-          //   style: const TextStyle(
-          //     color: Color(0xffeee8aa),
-          //     fontWeight: FontWeight.w900,
-          //     fontSize: 35,
-          //     height: 1,
-          //   ),
-          // ),
-        
         ],
       ),
     );

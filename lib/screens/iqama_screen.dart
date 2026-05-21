@@ -17,50 +17,38 @@ class IqamaScreen extends StatelessWidget {
             image: const AssetImage("assets/images/BG.png"),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.3),
+              Colors.black.withOpacity(0.65),
               BlendMode.darken,
             ),
           ),
         ),
-        child: const Stack(
-          alignment: Alignment.center, // ده بيسنتر أي حاجة مش Positioned
-          children: [
-            // 1. الأيقونة: تقدر تتحكم في التوب براحتك من هنا
-            Positioned(
-              top: 90, // 👈 غير الرقم ده زي ما أنت عايز تنزلها أو تطلعها
-              left: 0,
-              right:
-                  0, // وضع left و right بـ 0 بيخلي الـ Positioned ياخد عرض الشاشة كله
-              child: Center(child: Text('📵', style: TextStyle(fontSize: 90))),
-            ),
 
-            // 2. النصوص: في نص الشاشة بالظبط
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(height: 80),
-                Text(
-                  'يُرجى وضع الهاتف على الصامت',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 50,
-                    color: Color(0xffeee8aa),
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Tajawal',
-                  ),
-                ),
-                Text(
-                  'النظر في الصلاة موضع السجود',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 50,
-                    color: Color(0xffeee8aa),
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Tajawal',
-                  ),
-                ),
-              ],
-            ),
+        // 2. النصوص: في نص الشاشة بالظبط
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('📵', style: TextStyle(fontSize: 90)),
+            SizedBox(height: 0),
+            Text(
+              'يُرجى وضع الهاتف على الصامت',
+              textAlign: TextAlign.center,
+              style: TextStyle(height:1,
+                fontSize: 50,
+                color: Color(0xffeee8aa),
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Tajawal',
+              ),
+            ),SizedBox(height: 5,),
+            Text(
+              'النظر موضع السجود في الصلاة',
+              textAlign: TextAlign.center,
+              style: TextStyle(height: 1,
+                fontSize: 50,
+                color: Color(0xffeee8aa),
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Tajawal',
+              ),
+            ),SizedBox(height: 40,)
           ],
         ),
       ),

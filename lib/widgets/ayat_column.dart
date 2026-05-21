@@ -1,5 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:masjid/constants/colors.dart';
 import 'package:masjid/enums/app_state_enum.dart';
 import 'package:masjid/enums/app_theme_enum.dart';
 import 'package:masjid/models/message_model.dart';
@@ -14,7 +15,9 @@ class AyatColumn extends StatelessWidget {
     required this.adhkarMessages,
     required this.adhkarIndex,
     required this.currentTheme,
+    required this.collectionLabel, // ✅
   });
+  final String collectionLabel; // ✅
 
   final Message? currentMessage;
   final AppState appState;
@@ -90,10 +93,17 @@ class AyatColumn extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    displayMessage?.title ??
-                        (isAdhkarMode ? "أذكار" : "آيات من القرآن"),
-                    style: const TextStyle(
-                      color: Color(0xffeee8aa),
+                    isAdhkarMode
+                        ? displayMessage?.title ?? "أذكار"
+                        : collectionLabel.isNotEmpty
+                        ? collectionLabel
+                        : displayMessage?.title ?? '',
+                    style: TextStyle(
+                      color:
+                          currentTheme == AppThemeEnum.hajTheme ||
+                              currentTheme == AppThemeEnum.hajTheme2
+                          ? hajTextColor
+                          : Color(0xffeee8aa),
                       fontWeight: FontWeight.bold,
                       fontSize: 35,
                     ),
@@ -108,7 +118,7 @@ class AyatColumn extends StatelessWidget {
                 child: ClipRect(
                   // لمنع خروج الأنميشن عن الحدود
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 800),
+                    duration: const Duration(milliseconds: 2000),
                     // الـ LayoutBuilder هنا عشان الـ Stack يخلي القديم يخرج والجديد يدخل بسلاسة
                     layoutBuilder:
                         (Widget? currentChild, List<Widget> previousChildren) {
@@ -175,7 +185,14 @@ class AyatColumn extends StatelessWidget {
                                               displayMessage.text,
                                             ),
                                             style: TextStyle(
-                                              color: Color(0xffeee8aa),
+                                              color:
+                                                  currentTheme ==
+                                                          AppThemeEnum
+                                                              .hajTheme ||
+                                                      currentTheme ==
+                                                          AppThemeEnum.hajTheme2
+                                                  ? hajTextColor
+                                                  : Color(0xffeee8aa),
                                               fontFamily: 'Roboto',
                                               height: 1.4,
                                               fontWeight: FontWeight.bold,
@@ -206,8 +223,15 @@ class AyatColumn extends StatelessWidget {
                                             textDirection: TextDirection.rtl,
                                             maxLines: 5,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              color: Color(0xffeee8aa),
+                                            style: TextStyle(
+                                              color:
+                                                  currentTheme ==
+                                                          AppThemeEnum
+                                                              .hajTheme ||
+                                                      currentTheme ==
+                                                          AppThemeEnum.hajTheme2
+                                                  ? hajTextColor
+                                                  : Color(0xffeee8aa),
                                               fontWeight: FontWeight.w500,
                                               fontSize: 18,
                                             ),
@@ -225,8 +249,15 @@ class AyatColumn extends StatelessWidget {
                                             displayMessage.subText!,
                                             textAlign: TextAlign.center,
                                             textDirection: TextDirection.rtl,
-                                            style: const TextStyle(
-                                              color: Color(0xffeee8aa),
+                                            style: TextStyle(
+                                              color:
+                                                  currentTheme ==
+                                                          AppThemeEnum
+                                                              .hajTheme ||
+                                                      currentTheme ==
+                                                          AppThemeEnum.hajTheme2
+                                                  ? hajTextColor
+                                                  : Color(0xffeee8aa),
                                               fontWeight: FontWeight.w400,
                                               fontSize: 24,
                                             ),

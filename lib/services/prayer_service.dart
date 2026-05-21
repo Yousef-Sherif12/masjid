@@ -9,10 +9,13 @@ class PrayerService {
       'assets/jsons/prayer_times_.json',
     );
     final List<dynamic> data = json.decode(response);
+
+    // ✅ DateTime.now() هنا بيجيب التاريخ الحالي وقت الاستدعاء
     String todayDate = intl.DateFormat(
       'yyyy-MM-dd',
       'en',
     ).format(DateTime.now());
+
     try {
       final todayData = data.firstWhere(
         (element) => element['date'] == todayDate,
@@ -39,6 +42,7 @@ class PrayerService {
     }
   }
 
+  // في prayer_service.dart
   static Map<String, dynamic> calculateCountdown(DayPrayer? todayPrayerData) {
     if (todayPrayerData == null) return {"name": "-", "h": 0, "m": 0, "s": 0};
 
@@ -56,8 +60,11 @@ class PrayerService {
       final timeStr = todayPrayerData.times[prayerName];
       if (timeStr == null) continue;
       final prayerTime = parseTime(timeStr, now);
-      if (prayerTime.isAfter(now)) {
-        final diff = prayerTime.difference(now);
+
+      // ✅ الفرق بالثواني بدل isAfter
+      final diffSeconds = prayerTime.difference(now).inSeconds;
+      if (diffSeconds > 0) {
+        final diff = Duration(seconds: diffSeconds);
         return {
           "name": prayerName,
           "h": diff.inHours,
@@ -78,6 +85,45 @@ class PrayerService {
       "s": diff.inSeconds % 60,
     };
   }
+  // static Map<String, dynamic> calculateCountdown(DayPrayer? todayPrayerData) {
+  //   if (todayPrayerData == null) return {"name": "-", "h": 0, "m": 0, "s": 0};
+
+  //   final now = DateTime.now();
+  //   const prayerOrder = [
+  //     "الفجر",
+  //     "الشروق",
+  //     "الظهر",
+  //     "العصر",
+  //     "المغرب",
+  //     "العشاء",
+  //   ];
+
+  //   for (final prayerName in prayerOrder) {
+  //     final timeStr = todayPrayerData.times[prayerName];
+  //     if (timeStr == null) continue;
+  //     final prayerTime = parseTime(timeStr, now);
+  //     if (prayerTime.isAfter(now)) {
+  //       final diff = prayerTime.difference(now);
+  //       return {
+  //         "name": prayerName,
+  //         "h": diff.inHours,
+  //         "m": diff.inMinutes % 60,
+  //         "s": diff.inSeconds % 60,
+  //       };
+  //     }
+  //   }
+
+  //   final fajrStr = todayPrayerData.times["الفجر"] ?? "4:00 AM";
+  //   final tomorrow = now.add(const Duration(days: 1));
+  //   final nextFajr = parseTime(fajrStr, tomorrow);
+  //   final diff = nextFajr.difference(now);
+  //   return {
+  //     "name": "الفجر",
+  //     "h": diff.inHours,
+  //     "m": diff.inMinutes % 60,
+  //     "s": diff.inSeconds % 60,
+  //   };
+  // }
 
   static String getCurrentPrayerName(DayPrayer? todayPrayerData) {
     if (todayPrayerData == null) return "";

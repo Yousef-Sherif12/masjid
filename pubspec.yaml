@@ -36,7 +36,8 @@ dependencies:
   # مكتبة الترجمة المدمجة في Flutter
   flutter_localizations:
     sdk: flutter
-  auto_start_flutter: ^1.4.0
+  firebase_core: ^3.6.0
+  cloud_firestore: ^5.4.4
   intl: ^0.20.2 # تحديث لتوافق flutter_localizations
   adhan: ^2.0.0 # المحرك الأساسي لحساب مواقيت الصلاة
   marquee: ^2.2.3 # الشريط المتحرك في الأسفل
@@ -54,9 +55,8 @@ dependencies:
 flutter_launcher_icons:
   android: true
   image_path: "assets/images/app_icon.png"
-  adaptive_icon_background: "assets/images/app_icon.png"
+  adaptive_icon_background: "#1a3a2a" # أخضر غامق (لون المساجد)
   adaptive_icon_foreground: "assets/images/app_icon.png"
-  
 
 dev_dependencies:
   flutter_test:
@@ -86,7 +86,7 @@ flutter:
     - assets/jsons/prayer_times_.json
     - assets/jsons/iqama_times.json
     # - assets/jsons/adhkar.json
-    - assets/audios/adhan.mp3
+    - assets/audios/
     - assets/icons/
     - assets/images/
 

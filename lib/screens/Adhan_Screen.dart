@@ -22,7 +22,7 @@ class _AdhanScreenState extends State<AdhanScreen>
     )..repeat(reverse: true);
 
     _animation = Tween<double>(
-      begin: 0.1,
+      begin: 0.3,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
@@ -39,24 +39,22 @@ class _AdhanScreenState extends State<AdhanScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            'يرفع الآن أذان',
+           Text(
+            "حان الآن موعد أذان ${widget.prayerName}",
             style: TextStyle(
               color: Color(0xffeee8aa),
-              fontSize: 90,
+              fontSize: 60,
               fontWeight: FontWeight.bold,
-              
             ),
-            
           ),
           // ✅ النص بيومض بسلاسة
           FadeTransition(
             opacity: _animation,
-            child: Text(
-             widget.prayerName,
-              style: const TextStyle(
+            child:  const Text(
+              "يُرفع الآن الأذان",
+              style:  TextStyle(
                 color: Color(0xffeee8aa),
-                fontSize: 90,
+                fontSize: 60,
                 fontWeight: FontWeight.w900,
               ),
             ),

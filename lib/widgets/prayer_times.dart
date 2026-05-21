@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:masjid/constants/colors.dart';
+import 'package:masjid/enums/app_theme_enum.dart';
 import 'package:masjid/models/day_prayer.dart';
 import 'package:masjid/services/prayer_service.dart';
 import 'package:masjid/widgets/Line.dart';
 
 class PrayerTimes extends StatefulWidget {
-  const PrayerTimes({super.key});
-
+  PrayerTimes({super.key, required this.currentTheme});
+  AppThemeEnum currentTheme;
   @override
   State<PrayerTimes> createState() => _PrayerTimesState();
 }
@@ -59,18 +61,26 @@ class _PrayerTimesState extends State<PrayerTimes> {
 
               Text(
                 arabicPeriod,
-                style: const TextStyle(
-                  color: Color(0xffeee8aa),
+                style: TextStyle(
+                  color:
+                      widget.currentTheme == AppThemeEnum.hajTheme ||
+                          widget.currentTheme == AppThemeEnum.hajTheme2
+                      ? hajTextColor
+                      : Color(0xffeee8aa),
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               if (arabicPeriod == "م") const SizedBox(width: 6),
-              if(name=='الظهر') const SizedBox(width: 6,),
+              if (name == 'الظهر') const SizedBox(width: 6),
               Text(
                 timeNumbers,
-                style: const TextStyle(
-                  color: Color(0xffeee8aa),
+                style: TextStyle(
+                  color:
+                      widget.currentTheme == AppThemeEnum.hajTheme ||
+                          widget.currentTheme == AppThemeEnum.hajTheme2
+                      ? hajTextColor
+                      : Color(0xffeee8aa),
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -82,14 +92,27 @@ class _PrayerTimesState extends State<PrayerTimes> {
             children: [
               Text(
                 name,
-                style: const TextStyle(
-                  color: Color(0xffeee8aa),
+                style: TextStyle(
+                  color:
+                      widget.currentTheme == AppThemeEnum.hajTheme ||
+                          widget.currentTheme == AppThemeEnum.hajTheme2
+                      ? hajTextColor
+                      : Color(0xffeee8aa),
                   fontSize: 23,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(width: 10),
-              Image.asset(prayerIcons[name]!, height: 20, width: 20,color: Color(0xffeee8aa),),
+              Image.asset(
+                prayerIcons[name]!,
+                height: 20,
+                width: 20,
+                color:
+                    widget.currentTheme == AppThemeEnum.hajTheme ||
+                        widget.currentTheme == AppThemeEnum.hajTheme2
+                    ? hajTextColor
+                    : Color(0xffeee8aa),
+              ),
             ],
           ),
         ],
@@ -142,10 +165,16 @@ class _PrayerTimesState extends State<PrayerTimes> {
 
         return Container(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.centerRight,
               end: Alignment.centerLeft,
-              colors: [Color(0xff38391a), Colors.transparent],
+              colors: [
+                widget.currentTheme == AppThemeEnum.hajTheme ||
+                        widget.currentTheme == AppThemeEnum.hajTheme2
+                    ? hajBackGroundColor1
+                    : Color(0xff38391a),
+                Colors.transparent,
+              ],
             ),
             borderRadius: BorderRadius.circular(15),
           ),

@@ -3,6 +3,8 @@ enum AppThemeEnum {
   newLightTheme,
   newDarkTheme,
   theme4,
-  theme5
-}
+  hajTheme,
+  hajTheme2
+  
+  }
 

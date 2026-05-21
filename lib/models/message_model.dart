@@ -5,6 +5,7 @@ class Message {
   final String? fadl;
   final double? fontSize;
   final Duration? customDuration;
+  final String? docId; // ✅ ضيف ده
 
   Message({
     required this.type,
@@ -13,10 +14,13 @@ class Message {
     this.fadl,
     this.fontSize,
     this.customDuration = const Duration(seconds: 3),
+    this.docId,
   });
 
   // الـ getter المحسن عشان يقرأ الأنواع اللي في الـ JSON صح
   String get title {
+      print('🏷️ type: $type'); // ✅
+
     switch (type) {
       case "quran":
         return "قال الله تعالى";
@@ -35,7 +39,7 @@ class Message {
       case "thaqil":
         return "ثَقِّلْ مَوَازِينَكَ";
       default:
-        return "رسائل إيمانية"; // عنوان افتراضي بدل الفراغ
+        return '';
     }
   }
 

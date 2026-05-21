@@ -1,9 +1,11 @@
-
 import 'package:flutter/material.dart';
+import 'package:masjid/constants/colors.dart';
+import 'package:masjid/enums/app_theme_enum.dart';
 
 class Logo extends StatelessWidget {
-  const Logo({super.key});
+  Logo({super.key, required this.currentTheme});
 
+  AppThemeEnum currentTheme;
   @override
   Widget build(BuildContext context) {
     return Positioned(
@@ -12,10 +14,16 @@ class Logo extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
-          gradient:const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.centerRight,
             end: Alignment.centerLeft,
-            colors: [ Color(0xff38391a), Colors.transparent],
+            colors: [
+              currentTheme == AppThemeEnum.hajTheme ||
+                      currentTheme == AppThemeEnum.hajTheme2
+                  ? hajBackGroundColor1
+                  : Color(0xff38391a),
+              Colors.transparent,
+            ],
           ),
         ),
         child: Padding(
@@ -24,24 +32,39 @@ class Logo extends StatelessWidget {
             children: [
               Column(
                 children: [
-                const  Text(
+                  Text(
                     'المسجـــــــــــــــــــد',
                     style: TextStyle(
-                      color: Color(0xffeee8aa),
+                      color:
+                          currentTheme == AppThemeEnum.hajTheme ||
+                              currentTheme == AppThemeEnum.hajTheme2
+                          ? hajTextColor
+                          : Color(0xffeee8aa),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                const  Text(
+                  Text(
                     'الأهليّ الكويتيّ',
                     style: TextStyle(
-                      color: Color(0xffeee8aa),
+                      color:
+                          currentTheme == AppThemeEnum.hajTheme ||
+                              currentTheme == AppThemeEnum.hajTheme2
+                          ? hajTextColor
+                          : Color(0xffeee8aa),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
-            const  SizedBox(width: 8),
-            const  Icon(Icons.mosque, color: Color(0xffeee8aa)),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.mosque,
+                color:
+                    currentTheme == AppThemeEnum.hajTheme ||
+                        currentTheme == AppThemeEnum.hajTheme2
+                    ? hajTextColor
+                    : Color(0xffeee8aa),
+              ),
             ],
           ),
         ),
