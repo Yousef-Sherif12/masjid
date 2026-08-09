@@ -85,7 +85,7 @@ class AyatColumn extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
           child: Column(
             children: [
-              Line(height: 1),
+              Line(height: 1, currentTheme: currentTheme,),
               const SizedBox(height: 50),
 
               // ✅ العنوان وعداد الإقامة (ثابتين)
@@ -103,6 +103,8 @@ class AyatColumn extends StatelessWidget {
                           currentTheme == AppThemeEnum.hajTheme ||
                               currentTheme == AppThemeEnum.hajTheme2
                           ? hajTextColor
+                          : currentTheme == AppThemeEnum.newLightTheme
+                          ? whiteBgTextColor
                           : Color(0xffeee8aa),
                       fontWeight: FontWeight.bold,
                       fontSize: 35,
@@ -111,7 +113,7 @@ class AyatColumn extends StatelessWidget {
                 ],
               ),
 
-              Line(),
+              Line(currentTheme: currentTheme,),
 
               // ✅ قسم المحتوى المتحرك (كتلة واحدة من الشمال لليمين)
               Expanded(
@@ -192,6 +194,10 @@ class AyatColumn extends StatelessWidget {
                                                       currentTheme ==
                                                           AppThemeEnum.hajTheme2
                                                   ? hajTextColor
+                                                  : currentTheme ==
+                                                        AppThemeEnum
+                                                            .newLightTheme
+                                                  ? whiteBgTextColor
                                                   : Color(0xffeee8aa),
                                               fontFamily: 'Roboto',
                                               height: 1.4,
@@ -231,6 +237,10 @@ class AyatColumn extends StatelessWidget {
                                                       currentTheme ==
                                                           AppThemeEnum.hajTheme2
                                                   ? hajTextColor
+                                                  : currentTheme ==
+                                                        AppThemeEnum
+                                                            .newLightTheme
+                                                  ? whiteBgTextColor
                                                   : Color(0xffeee8aa),
                                               fontWeight: FontWeight.w500,
                                               fontSize: 18,
@@ -257,6 +267,10 @@ class AyatColumn extends StatelessWidget {
                                                       currentTheme ==
                                                           AppThemeEnum.hajTheme2
                                                   ? hajTextColor
+                                                  : currentTheme ==
+                                                        AppThemeEnum
+                                                            .newLightTheme
+                                                  ? whiteBgTextColor
                                                   : Color(0xffeee8aa),
                                               fontWeight: FontWeight.w400,
                                               fontSize: 24,
@@ -273,7 +287,7 @@ class AyatColumn extends StatelessWidget {
                 ),
               ),
 
-              Line(height: 1),
+              Line(height: 1, currentTheme: currentTheme,),
             ],
           ),
         ),

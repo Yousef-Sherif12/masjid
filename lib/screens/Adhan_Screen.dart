@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:masjid/constants/colors.dart';
+import 'package:masjid/enums/app_state_enum.dart';
+import 'package:masjid/enums/app_theme_enum.dart';
 
 class AdhanScreen extends StatefulWidget {
   final String prayerName;
-  const AdhanScreen({super.key, required this.prayerName});
+  AppThemeEnum currentTheme;
+  AdhanScreen({
+    super.key,
+    required this.prayerName,
+    required this.currentTheme,
+  });
 
   @override
   State<AdhanScreen> createState() => _AdhanScreenState();
@@ -39,10 +47,12 @@ class _AdhanScreenState extends State<AdhanScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-           Text(
+          Text(
             "حان الآن موعد أذان ${widget.prayerName}",
             style: TextStyle(
-              color: Color(0xffeee8aa),
+              color: widget.currentTheme == AppThemeEnum.newLightTheme
+                  ? whiteBgTextColor
+                  : Color(0xffeee8aa),
               fontSize: 60,
               fontWeight: FontWeight.bold,
             ),
@@ -50,10 +60,12 @@ class _AdhanScreenState extends State<AdhanScreen>
           // ✅ النص بيومض بسلاسة
           FadeTransition(
             opacity: _animation,
-            child:  const Text(
+            child: Text(
               "يُرفع الآن الأذان",
-              style:  TextStyle(
-                color: Color(0xffeee8aa),
+              style: TextStyle(
+                color: widget.currentTheme == AppThemeEnum.newLightTheme
+                    ? whiteBgTextColor
+                    : Color(0xffeee8aa),
                 fontSize: 60,
                 fontWeight: FontWeight.w900,
               ),

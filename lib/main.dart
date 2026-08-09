@@ -49,7 +49,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(fontFamily: 'Tajawal', textTheme: TextTheme()),
+      theme: ThemeData(
+        fontFamily: 'Tajawal',
+        textTheme: TextTheme(),
+        scaffoldBackgroundColor: Colors.black,
+      ),
       locale: const Locale('en'),
       supportedLocales: const [Locale('en')],
       localizationsDelegates: const [
@@ -58,7 +62,10 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
 
-      home: const Scaffold(body: VideoBackground()),
+      home: const Scaffold(
+                backgroundColor: Colors.black,
+
+        body: VideoBackground()),
     );
   }
 }
@@ -107,8 +114,49 @@ class _VideoBackgroundState extends State<VideoBackground> {
   Map<String, List<Message>> _collectionMessages = {};
   List<String> _activeCollectionKeys = [];
   Map<String, int> _collectionIndices = {};
-
   int adhkarIndex = 0;
+
+  // ✅ بدل _isTakbeeratPlaying
+  // final List<String> _sounds7 = ['audios/7.1.mp3', 'audios/7.3.mp3'];
+  // final List<String> _sounds8 = [
+  //   'audios/8.1.mp3',
+  //   'audios/8.2.mp3',
+  //   'audios/8.3.mp3',
+  //   'audios/8.4.mp3',
+  // ];
+  // final List<String> _sounds9 = [
+  //   'audios/9.1.mp3',
+  //   'audios/9.2.mp3',
+  //   'audios/9.3.mp3',
+  //   'audios/9.4.mp3',
+  // ];
+
+  // int _sound7Index = 0;
+  // int _sound8Index = 0;
+  // int _sound9Index = 0;
+  // bool _isSoundPlaying = false;
+
+  // void _playNextSound(
+  //   List<String> sounds,
+  //   int currentIndex,
+  //   Function(int) onIndexUpdate,
+  // ) {
+  //   // لو نفس المجموعة شغالة — وقّف
+  //   if (_isSoundPlaying) {
+  //     _audioPlayer.stop();
+  //     _audioPlayer.setReleaseMode(ReleaseMode.release);
+  //     setState(() => _isSoundPlaying = false);
+  //     return;
+  //   }
+
+  //   final index = currentIndex % sounds.length;
+  //   onIndexUpdate((index + 1) % sounds.length); // ✅ جهّز الـ index الجاي
+
+  //   _audioPlayer.setReleaseMode(ReleaseMode.loop);
+  //   _audioPlayer.play(AssetSource(sounds[index]));
+  //   setState(() => _isSoundPlaying = true);
+  // }
+
   // int quranIndex = 0;
   // int thaqilIndex = 0;
   // int hadithIndex = 0;
@@ -411,19 +459,32 @@ class _VideoBackgroundState extends State<VideoBackground> {
     _runNextZikr();
   }
 
+  DateTime? _adhanTriggeredAt;
+
   void _triggerAdhan(String prayerName) {
     if (_lastTriggeredPrayer == prayerName) return;
+    // _isSoundPlaying = false; // ✅ بدل _isTakbeeratPlaying
+    _audioPlayer.setReleaseMode(ReleaseMode.release);
+    _audioPlayer.stop();
     _lastTriggeredPrayer = prayerName;
     currentPrayerName = prayerName;
+    _adhanTriggeredAt = DateTime.now(); // ✅ احفظ وقت الأذان
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('last_adhan_prayer', prayerName);
+      prefs.setString(
+        'adhan_triggered_at',
+        _adhanTriggeredAt!.toIso8601String(),
+      );
+    });
     _controller?.play();
     setState(() {
-      _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+      // _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
 
       appState = AppState.adhan;
     });
     try {
       if (currentPrayerName != 'الشروق') {
-        _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+        // _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
 
         _audioPlayer.play(AssetSource('audios/adhan.mp3'));
       }
@@ -439,8 +500,33 @@ class _VideoBackgroundState extends State<VideoBackground> {
       if (!mounted) return;
       _audioPlayer.stop();
       _controller?.play();
-      setState(() => appState = AppState.iqamaCount);
+
+      // ✅ تحقق لو الجمعة وظهر
+      final isJumuah =
+          prayerName == 'الظهر' && DateTime.now().weekday == DateTime.friday;
+
+      if (isJumuah) {
+        // ✅ شاشة إقامة مباشرة من غير عداد
+        setState(() => appState = AppState.iqama);
+
+        // ✅ بعد 32 دقيقة روح للأذكار
+        Future.delayed(const Duration(minutes: 32), () {
+          if (!mounted) return;
+          if (appState == AppState.iqama && !isManualAdhkar) {
+            setState(() => appState = AppState.adhkar);
+            _startAdhkarTimer();
+          }
+        });
+      } else {
+        setState(() => appState = AppState.iqamaCount);
+      }
     });
+    // Future.delayed(Duration(seconds: delay), () {
+    //   if (!mounted) return;
+    //   _audioPlayer.stop();
+    //   _controller?.play();
+    //   setState(() => appState = AppState.iqamaCount);
+    // });
   }
 
   void _checkPrayerTime() {
@@ -472,23 +558,51 @@ class _VideoBackgroundState extends State<VideoBackground> {
   }
 
   String _getIqamaCountdown() {
-    if (todayPrayerData == null) return '';
+    if (currentPrayerName.isEmpty) return '';
     final now = DateTime.now();
-    final timeStr = todayPrayerData!.times[currentPrayerName];
-    if (timeStr == null) return '';
-    final prayerTime = PrayerService.parseTime(timeStr, now);
+
+    // ✅ لو عندنا وقت الأذان الحقيقي استخدمه
+    DateTime baseTime;
+    if (_adhanTriggeredAt != null) {
+      baseTime = _adhanTriggeredAt!;
+    } else {
+      // fallback للطريقة القديمة
+      if (todayPrayerData == null) return '';
+      final timeStr = todayPrayerData!.times[currentPrayerName];
+      if (timeStr == null) return '';
+      baseTime = PrayerService.parseTime(timeStr, now);
+    }
+
     final iqamaMinutes = iqamaTimes[currentPrayerName] ?? 10;
-    final iqamaTime = prayerTime.add(Duration(minutes: iqamaMinutes));
+    final iqamaTime = baseTime.add(Duration(minutes: iqamaMinutes));
     final diff = iqamaTime.difference(now);
 
     if (diff.isNegative || diff.inSeconds <= 0) return '00:00';
 
-    // ✅ الحساب الصح بالثواني
     final totalSeconds = diff.inSeconds;
     final m = (totalSeconds ~/ 60).toString().padLeft(2, '0');
     final s = (totalSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
   }
+  // String _getIqamaCountdown() {
+  //   if (todayPrayerData == null) return '';
+  //   final now = DateTime.now();
+  //   final timeStr = todayPrayerData!.times[currentPrayerName];
+  //   if (timeStr == null) return '';
+  //   final prayerTime = PrayerService.parseTime(timeStr, now);
+  //   final iqamaMinutes = iqamaTimes[currentPrayerName] ?? 10;
+  //   final iqamaTime = prayerTime.add(Duration(minutes: iqamaMinutes));
+  //   final diff = iqamaTime.difference(now);
+
+  //   if (diff.isNegative || diff.inSeconds <= 0) return '00:00';
+
+  //   // ✅ الحساب الصح بالثواني
+  //   final totalSeconds = diff.inSeconds;
+  //   final m = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+  //   final s = (totalSeconds % 60).toString().padLeft(2, '0');
+  //   return '$m:$s';
+  // }
+
   // String _getIqamaCountdown() {
   //   if (todayPrayerData == null) return '';
   //   final now = DateTime.now();
@@ -546,11 +660,30 @@ class _VideoBackgroundState extends State<VideoBackground> {
   }
 
   void _switchToNormal() {
-    _controller?.play(); // ✅
+    // ✅ لو لسه في وقت العداد — ارجع للعداد مش للنورمال
+    if (_adhanTriggeredAt != null) {
+      final now = DateTime.now();
+      final iqamaMinutes = iqamaTimes[currentPrayerName] ?? 10;
+      final iqamaTime = _adhanTriggeredAt!.add(Duration(minutes: iqamaMinutes));
+
+      if (now.isBefore(iqamaTime)) {
+        setState(() => appState = AppState.iqamaCount);
+        return;
+      }
+    }
+
+    _controller?.play();
     setState(() => appState = AppState.normal);
     isManualAdhkar = false;
     isManualIqama = false;
-  } // void _switchToAdhan() => setState(() => appState = AppState.adhan);
+  }
+
+  // void _switchToNormal() {
+  //   _controller?.play(); // ✅
+  //   setState(() => appState = AppState.normal);
+  //   isManualAdhkar = false;
+  //   isManualIqama = false;
+  // } // void _switchToAdhan() => setState(() => appState = AppState.adhan);
 
   final FocusNode _focusNode = FocusNode();
 
@@ -586,7 +719,7 @@ class _VideoBackgroundState extends State<VideoBackground> {
       case AppThemeEnum.oldTheme:
         return "assets/videos/bg.mp4";
       case AppThemeEnum.newLightTheme:
-        return "assets/videos/bg1.mp4";
+        return "assets/videos/0524.mp4";
       case AppThemeEnum.newDarkTheme:
         return "assets/videos/bg1.mp4";
       case AppThemeEnum.theme4:
@@ -617,8 +750,8 @@ class _VideoBackgroundState extends State<VideoBackground> {
     if (currentTheme == newTheme) return;
 
     // ✅ إيقاف صوت تكبيرات العيد (أو أي صوت شغال) فور تغيير الثيم
-    await _audioPlayer.stop();
-    await _audioPlayer.setReleaseMode(ReleaseMode.release);
+    // await _audioPlayer.stop();
+    // await _audioPlayer.setReleaseMode(ReleaseMode.release);
 
     currentTheme = newTheme;
     await saveTheme(newTheme);
@@ -686,9 +819,10 @@ class _VideoBackgroundState extends State<VideoBackground> {
 
     await _initVideo();
 
-    _loadAllData();
+    await _loadAllData();
 
     _startClockTimer();
+    await _restoreIqamaCountdownIfNeeded();
 
     setState(() {});
   }
@@ -754,6 +888,34 @@ class _VideoBackgroundState extends State<VideoBackground> {
     final Map<String, dynamic> data = json.decode(response);
 
     await db.collection('settings').doc('iqama_times').set(data);
+  }
+
+  Future<void> _restoreIqamaCountdownIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPrayer = prefs.getString('last_adhan_prayer');
+    final savedTimeStr = prefs.getString('adhan_triggered_at');
+
+    if (savedPrayer == null || savedTimeStr == null) return;
+
+    final adhanTime = DateTime.tryParse(savedTimeStr);
+    if (adhanTime == null) return;
+
+    final now = DateTime.now();
+    final iqamaMinutes = iqamaTimes[savedPrayer] ?? 10;
+    final iqamaTime = adhanTime.add(
+      Duration(minutes: iqamaMinutes + 3),
+    ); // +3 للأذان
+
+    // ✅ لو لسه في وقت العداد
+    if (now.isBefore(iqamaTime)) {
+      currentPrayerName = savedPrayer;
+      _adhanTriggeredAt = adhanTime;
+      setState(() => appState = AppState.iqamaCount);
+    } else {
+      // ✅ انتهى الوقت — امسح
+      prefs.remove('last_adhan_prayer');
+      prefs.remove('adhan_triggered_at');
+    }
   }
 
   @override
@@ -856,26 +1018,19 @@ class _VideoBackgroundState extends State<VideoBackground> {
   // }
 
   String get currentCollectionLabel {
-    print('🏷️ _activeCollections: $_activeCollections');
-    print('🏷️ _activeCollectionKeys: $_activeCollectionKeys');
-    print('🏷️ contentTypeIndex: $contentTypeIndex');
-
     if (_activeCollectionKeys.isEmpty) return '';
     final key =
         _activeCollectionKeys[contentTypeIndex % _activeCollectionKeys.length];
-    print('🏷️ looking for key: $key');
 
     final col = _activeCollections.firstWhere(
       (c) => c['id'] == key,
       orElse: () => {'label': ''},
     );
-    print('🏷️ found col: $col');
-    print('🏷️ label: ${col['label']}');
 
     return col['label']?.toString() ?? '';
   }
 
-  void _loadAllData() async {
+  Future<void> _loadAllData() async {
     final prayers = await PrayerService.getTodayPrayers();
     final iqama = await IqamaService.getIqamaTimes();
 
@@ -954,15 +1109,17 @@ class _VideoBackgroundState extends State<VideoBackground> {
   void _startClockTimer() {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() {
-        _now = DateTime.now();
-        _cachedCountdown = PrayerService.calculateCountdown(todayPrayerData);
-        final today = DateTime(_now.year, _now.month, _now.day);
+      final now = DateTime.now();
 
-        if (_lastLoadedDay == null || today != _lastLoadedDay) {
-          _lastLoadedDay = today;
-          _reloadPrayerTimes();
-        }
+      final today = DateTime(_now.year, _now.month, _now.day);
+      if (_lastLoadedDay == null || today != _lastLoadedDay) {
+        _lastLoadedDay = today;
+        _reloadPrayerTimes();
+      }
+      setState(() {
+        _now = now;
+        _cachedCountdown = PrayerService.calculateCountdown(todayPrayerData);
+
         if (appState == AppState.iqamaCount) {
           _iqamaCountdown = _getIqamaCountdown();
           // ابحث عن الجزء ده داخل _startClockTimer وتأكد إنه كدا:
@@ -993,6 +1150,22 @@ class _VideoBackgroundState extends State<VideoBackground> {
     });
   }
 
+  // في المتغيرات
+  // bool _isTakbeeratPlaying = false;
+
+  // الدالة
+  // void _toggleTakbeerat() {
+  //   if (_isTakbeeratPlaying) {
+  //     _audioPlayer.stop();
+  //     _audioPlayer.setReleaseMode(ReleaseMode.release);
+  //     setState(() => _isTakbeeratPlaying = false);
+  //   } else {
+  //     _audioPlayer.setReleaseMode(ReleaseMode.loop);
+  //     _audioPlayer.play(AssetSource('audios/takbeerat.mp3'));
+  //     setState(() => _isTakbeeratPlaying = true);
+  //   }
+  // }
+
   Future<void> _reloadPrayerTimes() async {
     // ✅ بس استدعي التحميل من جديد
     final prayers = await PrayerService.getTodayPrayers();
@@ -1002,10 +1175,6 @@ class _VideoBackgroundState extends State<VideoBackground> {
       todayPrayerData = prayers;
       _lastTriggeredPrayer = null; // ✅ مهم — يسمح بأذان الفجر
     });
-
-    print(
-      '✅ تم تحديث أوقات الصلاة: ${DateTime.now().day}/${DateTime.now().month}',
-    );
   }
 
   @override
@@ -1039,8 +1208,12 @@ class _VideoBackgroundState extends State<VideoBackground> {
           if (keyName == 'ColorF0Red' ||
               key == LogicalKeyboardKey.keyA ||
               key.keyId == 0x100070001) {
-            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+            // ✅ لو في عداد إقامة شغال — متروحش لشاشة الإقامة اليدوية
+            if (appState == AppState.iqamaCount) {
+              return KeyEventResult.handled; // تجاهل
+            }
 
+            _audioPlayer.stop();
             _switchToIqama();
             return KeyEventResult.handled;
           }
@@ -1071,52 +1244,72 @@ class _VideoBackgroundState extends State<VideoBackground> {
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit1) {
-            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+            // _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.oldTheme);
 
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit2) {
-            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+            // _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.newLightTheme);
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit3) {
-            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+            // _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.newDarkTheme);
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit4) {
-            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.theme4);
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit5) {
             // بنستدعي تغيير الثيم، ولما يخلص (تنتهي الـ Future) بنشغل الصوت
-            _changeTheme(AppThemeEnum.hajTheme).then((_) {
-              try {
-                _audioPlayer.setReleaseMode(ReleaseMode.loop);
-                _audioPlayer.play(
-                  AssetSource(
-                    'audios/takbeerat.mp3',
-                  ), // المسار الصحيح بدون assets/
-                );
-              } catch (e) {
-                print("Error playing takbeerat: $e");
-              }
-            });
+            _changeTheme(AppThemeEnum.hajTheme);
 
             return KeyEventResult.handled;
           }
           if (key == LogicalKeyboardKey.digit6) {
-            _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
+            // _audioPlayer.stop(); // إيقاف الصوت عند العودة للوضع الطبيعي
             _changeTheme(AppThemeEnum.hajTheme2);
             return KeyEventResult.handled;
           }
+          // if (key == LogicalKeyboardKey.digit7) {
+          //   _playNextSound(
+          //     _sounds7,
+          //     _sound7Index,
+          //     (newIndex) => _sound7Index = newIndex,
+          //   );
+          //   return KeyEventResult.handled;
+          // }
+
+          // if (key == LogicalKeyboardKey.digit8) {
+          //   _playNextSound(
+          //     _sounds8,
+          //     _sound8Index,
+          //     (newIndex) => _sound8Index = newIndex,
+          //   );
+          //   return KeyEventResult.handled;
+          // }
+
+          // if (key == LogicalKeyboardKey.digit9) {
+          //   _playNextSound(
+          //     _sounds9,
+          //     _sound9Index,
+          //     (newIndex) => _sound9Index = newIndex,
+          //   );
+          //   return KeyEventResult.handled;
+          // }
+          // if (key == LogicalKeyboardKey.digit9) {
+          //   _toggleTakbeerat();
+          //   return KeyEventResult.handled;
+          // }
         }
         return KeyEventResult.ignored;
       },
       child: Scaffold(
+                backgroundColor: Colors.black,
+
         extendBody: true,
         body: Stack(
           children: [
@@ -1133,7 +1326,6 @@ class _VideoBackgroundState extends State<VideoBackground> {
                   ),
                 ),
               ),
-
             BlurOverlay(currentTheme: currentTheme),
 
             // ✅ الشاشة الأساسية دايماً موجودة
@@ -1142,7 +1334,10 @@ class _VideoBackgroundState extends State<VideoBackground> {
             // ✅ الأذان كـ overlay
             if (appState == AppState.adhan)
               Positioned.fill(
-                child: AdhanScreen(prayerName: currentPrayerName),
+                child: AdhanScreen(
+                  prayerName: currentPrayerName,
+                  currentTheme: currentTheme,
+                ),
               ),
 
             // ✅ الإقامة كـ overlay
@@ -1190,6 +1385,7 @@ class _VideoBackgroundState extends State<VideoBackground> {
               iqamaTime: _iqamaCountdown,
               appState: appState,
               currentTheme: currentTheme,
+              prayerData: todayPrayerData,
             ),
             AyatColumn(
               currentMessage: _isLiveDisplay
@@ -1223,6 +1419,8 @@ class BlurOverlay extends StatelessWidget {
               : currentTheme == AppThemeEnum.hajTheme ||
                     currentTheme == AppThemeEnum.hajTheme2
               ? Colors.black.withOpacity(0.65)
+              : currentTheme == AppThemeEnum.newLightTheme
+              ? Colors.black.withOpacity(0.15)
               : Colors.black.withOpacity(0.3),
         ),
       ),

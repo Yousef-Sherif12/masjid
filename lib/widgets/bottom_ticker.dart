@@ -16,50 +16,54 @@ class BottomTicker extends StatelessWidget {
       height: 36,
       child: Column(
         children: [
-          const Line(height: 1),
+          Line(height: 1, currentTheme: currentTheme),
           const SizedBox(height: 4),
-// ✅ استخدم StreamBuilder بدل FutureBuilder عشان يتحدث فوراً
-Expanded(
-  child: StreamBuilder<List<TickerMessage>>(
-    stream: IqamaService.listenToTickerMessages(), // ✅ stream
-    builder: (context, snapshot) {
-      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-        return const SizedBox();
-      }
+          // ✅ استخدم StreamBuilder بدل FutureBuilder عشان يتحدث فوراً
+          Expanded(
+            child: StreamBuilder<List<TickerMessage>>(
+              stream: IqamaService.listenToTickerMessages(), // ✅ stream
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const SizedBox();
+                }
 
-      final messages = snapshot.data!
-          .where((e) => e.active) // ✅ فلتر المفعّلين بس
-          .toList();
+                final messages = snapshot.data!
+                    .where((e) => e.active) // ✅ فلتر المفعّلين بس
+                    .toList();
 
-      if (messages.isEmpty) return const SizedBox();
+                if (messages.isEmpty) return const SizedBox();
 
-      // ✅ المسافات والنقطة صح — قبل وبعد كل نص
-      const separator = '            .            ';
-      final text = messages
-          .map((e) => e.text)
-          .join(separator) + separator; // ✅ ضيف separator في الآخر
+                // ✅ المسافات والنقطة صح — قبل وبعد كل نص
+                const separator = '            .            ';
+                final text =
+                    messages.map((e) => e.text).join(separator) +
+                    separator; // ✅ ضيف separator في الآخر
 
-      return Marquee(
-        key: ValueKey(text), // ✅ يعيد البناء لو النص اتغير
-        text: text,
-        style: TextStyle(
-          color: currentTheme == AppThemeEnum.hajTheme ||
-                  currentTheme == AppThemeEnum.hajTheme2
-              ? hajTextColor
-              : const Color(0xffeee8aa),
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-        scrollAxis: Axis.horizontal,
-        textDirection: TextDirection.rtl,
-        velocity: 45,
-        accelerationCurve: Curves.linear,
-        decelerationCurve: Curves.linear,
-        pauseAfterRound: Duration.zero,
-      );
-    },
-  ),
-),
+                return Marquee(
+                  key: ValueKey(text), // ✅ يعيد البناء لو النص اتغير
+                  text: text,
+                  style: TextStyle(
+                    color:
+                        currentTheme == AppThemeEnum.hajTheme ||
+                            currentTheme == AppThemeEnum.hajTheme2
+                        ? hajTextColor
+                        : currentTheme == AppThemeEnum.newLightTheme
+                        ? whiteBgTextColor
+                        : const Color(0xffeee8aa),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  scrollAxis: Axis.horizontal,
+                  textDirection: TextDirection.rtl,
+                  velocity: 45,
+                  accelerationCurve: Curves.linear,
+                  decelerationCurve: Curves.linear,
+                  pauseAfterRound: Duration.zero,
+                );
+              },
+            ),
+          ),
+
           // Expanded(
           //   child: Marquee(
           //     text:
@@ -85,9 +89,8 @@ Expanded(
           //     pauseAfterRound: Duration.zero,
           //   ),
           // ),
-
           const SizedBox(height: 4),
-          const Line(height: 1),
+          Line(height: 1, currentTheme: currentTheme),
         ],
       ),
     );

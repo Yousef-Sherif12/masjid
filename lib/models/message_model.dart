@@ -19,7 +19,6 @@ class Message {
 
   // الـ getter المحسن عشان يقرأ الأنواع اللي في الـ JSON صح
   String get title {
-      print('🏷️ type: $type'); // ✅
 
     switch (type) {
       case "quran":

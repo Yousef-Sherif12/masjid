@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:masjid/constants/colors.dart';
 import 'package:masjid/enums/app_state_enum.dart';
 import 'package:masjid/enums/app_theme_enum.dart';
+import 'package:masjid/models/day_prayer.dart';
 import 'package:masjid/widgets/Line.dart';
 import 'package:masjid/widgets/next_pray.dart';
 import 'package:masjid/widgets/prayer_times.dart';
@@ -21,6 +22,7 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
     required this.iqamaTime,
     required this.appState,
     required this.currentTheme,
+    required this.prayerData,
   });
 
   final String hijriDate;
@@ -32,6 +34,7 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
   final String iqamaTime;
   final AppState appState;
   AppThemeEnum currentTheme;
+  final DayPrayer? prayerData; // ✅ بياخدها من main.dart
 
   @override
   Widget build(BuildContext context) {
@@ -57,9 +60,9 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
           // mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Line(height: 1),
+            Line(height: 1, currentTheme: currentTheme),
             //التاريخ
-            SizedBox(height: 10),
+            SizedBox(height: 2),
             TimeAndDate(
               hijriDate: hijriDate,
               date: date,
@@ -67,7 +70,9 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
               fullTime: fullTime,
               currentTheme: currentTheme,
             ),
-            Spacer(), // مواقيت الصلاة
+            // Spacer(), // مواقيت الصلاة
+            SizedBox(height: 4),
+
             Text(
               'مواقيت الصلاة',
               style: TextStyle(
@@ -75,6 +80,8 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
                     currentTheme == AppThemeEnum.hajTheme ||
                         currentTheme == AppThemeEnum.hajTheme2
                     ? hajTextColor
+                    : currentTheme == AppThemeEnum.newLightTheme
+                    ? whiteBgTextColor
                     : Color(0xffeee8aa),
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Tajawal',
@@ -83,10 +90,14 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
                 height: 1,
               ),
             ),
-            const Line(height: 0.7),
-            const SizedBox(height: 10),
-            PrayerTimes(currentTheme: currentTheme),
-            const SizedBox(height: 7),
+            Line(height: 0.7, currentTheme: currentTheme),
+            const SizedBox(height: 0),
+            PrayerTimes(
+              prayerData: prayerData, // ✅ من main
+
+              currentTheme: currentTheme,
+            ),
+            const SizedBox(height: 3),
             NextPray(
               nextPray: nextPrayName,
               hours: hours,
@@ -96,8 +107,8 @@ class PrayerTimesAndDateColunm extends StatelessWidget {
               iqamaCountdown: iqamaTime,
               currentTheme: currentTheme,
             ),
-            const SizedBox(height: 5),
-            const Line(height: 1),
+            // const SizedBox(height: 9),
+            Line(height: 1, currentTheme: currentTheme),
           ],
         ),
       ),
@@ -134,7 +145,7 @@ class TimeAndDate extends StatelessWidget {
             day: day,
             currentTheme: currentTheme,
           ),
-
+          SizedBox(width: 4),
           DayAndTime(fullTime: fullTime, currentTheme: currentTheme),
         ],
       ),
@@ -159,6 +170,7 @@ class Date extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
+      flex: 3,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.start,
@@ -166,9 +178,12 @@ class Date extends StatelessWidget {
           Text(
             day,
             style: TextStyle(
-              color: currentTheme == AppThemeEnum.hajTheme||
-              currentTheme == AppThemeEnum.hajTheme2
+              color:
+                  currentTheme == AppThemeEnum.hajTheme ||
+                      currentTheme == AppThemeEnum.hajTheme2
                   ? hajTextColor
+                  : currentTheme == AppThemeEnum.newLightTheme
+                  ? whiteBgTextColor
                   : Color(0xffeee8aa),
               fontWeight: FontWeight.w900,
               fontSize: 16,
@@ -179,9 +194,12 @@ class Date extends StatelessWidget {
             hijriDate,
             textDirection: TextDirection.rtl,
             style: TextStyle(
-              color: currentTheme == AppThemeEnum.hajTheme||
-              currentTheme == AppThemeEnum.hajTheme2
+              color:
+                  currentTheme == AppThemeEnum.hajTheme ||
+                      currentTheme == AppThemeEnum.hajTheme2
                   ? hajTextColor
+                  : currentTheme == AppThemeEnum.newLightTheme
+                  ? whiteBgTextColor
                   : Color(0xffeee8aa),
               fontWeight: FontWeight.w700,
               fontSize: 15,
@@ -192,12 +210,15 @@ class Date extends StatelessWidget {
             '$dateم',
             textDirection: TextDirection.rtl,
             style: TextStyle(
-              color: currentTheme == AppThemeEnum.hajTheme||
-              currentTheme == AppThemeEnum.hajTheme2
+              color:
+                  currentTheme == AppThemeEnum.hajTheme ||
+                      currentTheme == AppThemeEnum.hajTheme2
                   ? hajTextColor
+                  : currentTheme == AppThemeEnum.newLightTheme
+                  ? whiteBgTextColor
                   : Color(0xffeee8aa),
               fontWeight: FontWeight.w700,
-              fontSize: 18,
+              fontSize: 15,
             ),
           ),
         ],
@@ -219,6 +240,7 @@ class DayAndTime extends StatelessWidget {
     final timeOnly = timeParts[0];
 
     return Expanded(
+      flex: 3,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -236,12 +258,15 @@ class DayAndTime extends StatelessWidget {
                   Text(
                     timeOnly,
                     style: TextStyle(
-                      color: currentTheme == AppThemeEnum.hajTheme||
-              currentTheme == AppThemeEnum.hajTheme2
+                      color:
+                          currentTheme == AppThemeEnum.hajTheme ||
+                              currentTheme == AppThemeEnum.hajTheme2
                           ? hajTextColor
+                          : currentTheme == AppThemeEnum.newLightTheme
+                          ? whiteBgTextColor
                           : Color(0xffeee8aa),
                       fontWeight: FontWeight.w900,
-                      fontSize: 200, // حجم افتراضي كبير جداً
+                      fontSize: 60, // حجم افتراضي كبير جداً
                       fontFamily: 'Tajawal',
                       height: 1,
                     ),

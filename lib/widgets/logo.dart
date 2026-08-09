@@ -21,6 +21,8 @@ class Logo extends StatelessWidget {
               currentTheme == AppThemeEnum.hajTheme ||
                       currentTheme == AppThemeEnum.hajTheme2
                   ? hajBackGroundColor1
+                  : currentTheme == AppThemeEnum.newLightTheme
+                  ? whiteBgColor
                   : Color(0xff38391a),
               Colors.transparent,
             ],
@@ -39,6 +41,8 @@ class Logo extends StatelessWidget {
                           currentTheme == AppThemeEnum.hajTheme ||
                               currentTheme == AppThemeEnum.hajTheme2
                           ? hajTextColor
+                          : currentTheme == AppThemeEnum.newLightTheme
+                          ? whiteBgTextColor
                           : Color(0xffeee8aa),
                       fontWeight: FontWeight.w700,
                     ),
@@ -50,6 +54,8 @@ class Logo extends StatelessWidget {
                           currentTheme == AppThemeEnum.hajTheme ||
                               currentTheme == AppThemeEnum.hajTheme2
                           ? hajTextColor
+                          : currentTheme == AppThemeEnum.newLightTheme
+                          ? whiteBgTextColor
                           : Color(0xffeee8aa),
                       fontWeight: FontWeight.w700,
                     ),
@@ -63,6 +69,8 @@ class Logo extends StatelessWidget {
                     currentTheme == AppThemeEnum.hajTheme ||
                         currentTheme == AppThemeEnum.hajTheme2
                     ? hajTextColor
+                    : currentTheme == AppThemeEnum.newLightTheme
+                    ? whiteBgTextColor
                     : Color(0xffeee8aa),
               ),
             ],

@@ -1,8 +1,11 @@
+// ignore_for_file: unused_element
+
 import 'package:flutter/material.dart';
 import 'package:masjid/constants/colors.dart';
 import 'package:masjid/enums/app_state_enum.dart';
 import 'package:masjid/enums/app_theme_enum.dart';
 
+// ignore: must_be_immutable
 class NextPray extends StatelessWidget {
   NextPray({
     super.key,
@@ -21,7 +24,6 @@ class NextPray extends StatelessWidget {
   final String iqamaCountdown;
   AppThemeEnum currentTheme;
 
-  // دالة تنسيق الوقت بالعربية
   String formatArabicTime(int value, String type) {
     if (value <= 0) return "";
 
@@ -49,29 +51,56 @@ class NextPray extends StatelessWidget {
     return "$value $type";
   }
 
+  // دالة تنسيق الوقت الرقمي بصيغة 00:00:00
+  // استبدل الدالة القديمة بهذه الدالة فقط:
+  String formatTime(Duration duration) {
+    final hours = duration.inHours.toString().padLeft(2, '0');
+
+    final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
+
+    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+
+    return '$hours:$minutes:$seconds';
+  }
+
   TextStyle _timerStyle() {
     return TextStyle(
       color:
           currentTheme == AppThemeEnum.hajTheme ||
               currentTheme == AppThemeEnum.hajTheme2
           ? hajTextColor
+          : currentTheme == AppThemeEnum.newLightTheme
+          ? whiteBgTextColor
           : Color(0xffeee8aa),
       fontWeight: FontWeight.w900,
       fontSize: 17,
     );
   }
 
-  String parcePrayerName(String name) {
-    if (name == 'الشروق') {
-      return 'الضحى';
+  String formatDigitalTime(int h, int m, int s) {
+    final formattedHours = h.toString().padLeft(2, '0');
+    final formattedMinutes = m.toString().padLeft(2, '0');
+    final formattedSeconds = s.toString().padLeft(2, '0');
+
+    if (h > 0) {
+      // لو الساعات موجودة (حتى لو قيمتها أى رقم فوق الصفر) -> 11:55:05 أو 05:07:22
+      return '$formattedHours:$formattedMinutes:$formattedSeconds';
     } else {
-      return name;
+      // لو الساعات تصفرت، احذفها تماماً وسيب الدقائق والثواني -> 55:35 أو 05:02 أو 00:48
+      return '$formattedMinutes:$formattedSeconds';
     }
   }
 
+  // String parcePrayerName(String name) {
+  //   if (name == 'الشروق') {
+  //     return 'الضحى';
+  //   } else {
+  //     return name;
+  //   }
+  // }
+
   @override
   Widget build(BuildContext context) {
-    // تحديد ما إذا كنا في وضع عد التنازلي للإقامة
     bool isIqamaMode = appState == AppState.iqamaCount;
 
     return Container(
@@ -83,7 +112,9 @@ class NextPray extends StatelessWidget {
             currentTheme == AppThemeEnum.hajTheme ||
                     currentTheme == AppThemeEnum.hajTheme2
                 ? hajBackGroundColor1
-                : Color(0xff38391a),
+                : currentTheme == AppThemeEnum.newLightTheme
+                ? whiteBgColor
+                : const Color(0xff38391a),
             Colors.transparent,
           ],
         ),
@@ -96,7 +127,7 @@ class NextPray extends StatelessWidget {
   // 1. واجهة عداد الإقامة (00:00 على اليسار والنص على اليمين)
   Widget _buildIqamaView() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -104,14 +135,16 @@ class NextPray extends StatelessWidget {
           // عداد الإقامة الكبير
           Text(
             iqamaCountdown,
-            // '30:59',
             style: TextStyle(
-              color: currentTheme == AppThemeEnum.hajTheme||
-              currentTheme == AppThemeEnum.hajTheme2
+              color:
+                  currentTheme == AppThemeEnum.hajTheme ||
+                      currentTheme == AppThemeEnum.hajTheme2
                   ? hajTextColor
+                  : currentTheme == AppThemeEnum.newLightTheme
+                  ? whiteBgTextColor
                   : Color(0xffeee8aa),
               fontWeight: FontWeight.bold,
-              fontSize: 50, // حجم كبير للعداد
+              fontSize: 40, // حجم كبير للعداد
               letterSpacing: 2,
             ),
           ),
@@ -120,80 +153,132 @@ class NextPray extends StatelessWidget {
           Text(
             'الباقي على\nالإقامة',
             textAlign: TextAlign.center,
-
             style: TextStyle(
-              color: currentTheme == AppThemeEnum.hajTheme||
-              currentTheme == AppThemeEnum.hajTheme2
+              color:
+                  currentTheme == AppThemeEnum.hajTheme ||
+                      currentTheme == AppThemeEnum.hajTheme2
                   ? hajTextColor
+                  : currentTheme == AppThemeEnum.newLightTheme
+                  ? whiteBgTextColor
                   : Color(0xffeee8aa),
               fontWeight: FontWeight.w900,
-              fontSize: 22,
+              fontSize: 20,
             ),
           ),
         ],
       ),
     );
   }
+  //! ده القديم
+  // Widget _buildNextPrayView() {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+  //     child: Column(
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       crossAxisAlignment: CrossAxisAlignment.center,
+  //       children: [
+  //         Text(
+  //          ' الصلاة القادمة: ${parcePrayerName(nextPray)}',
+  //           style: TextStyle(
+  //             color:
+  //                 currentTheme == AppThemeEnum.hajTheme ||
+  //                     currentTheme == AppThemeEnum.hajTheme2
+  //                 ? hajTextColor
+  //                 : Color(0xffeee8aa),
+  //             fontWeight: FontWeight.w900,
+  //             fontSize: 19,
+  //             height: 1,
+  //           ),
+  //         ),
 
-  // 2. واجهة الصلاة القادمة (الشكل القديم المعتاد)
+  //         Text(
+  //           ':يحين موعدها بإذن الله تعالى بعد',
+  //           style: TextStyle(
+  //             color:
+  //                 currentTheme == AppThemeEnum.hajTheme ||
+  //                     currentTheme == AppThemeEnum.hajTheme2
+  //                 ? hajTextColor
+  //                 : Color(0xffeee8aa),
+  //             fontWeight: FontWeight.w300,
+  //             fontSize: 16,
+  //             height: 1.2,
+  //           ),
+  //         ),
+  //         Directionality(
+  //           textDirection: TextDirection.rtl,
+  //           child: Row(
+  //             mainAxisAlignment: MainAxisAlignment.center,
+  //             children: [
+  //               // عرض الساعات
+  //               if (hours > 0)
+  //                 Text(
+  //                   formatArabicTime(hours, "ساعة") +
+  //                       (min > 0 || sec > 0 ? " و " : ""),
+  //                   style: _timerStyle(),
+  //                 ),
+
+  //               // عرض الدقائق
+  //               if (min > 0)
+  //                 Text(
+  //                   formatArabicTime(min, "دقيقة") + (sec > 0 ? " و " : ""),
+  //                   style: _timerStyle(),
+  //                 ),
+
+  //               // عرض الثواني
+  //               if (sec > 0 ||
+  //                   (hours == 0 &&
+  //                       min == 0)) // بنعرض الثواني لو موجودة أو لو كله أصفار
+  //                 Text(formatArabicTime(sec, "ثانية"), style: _timerStyle()),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+  //! ده الجديد
   Widget _buildNextPrayView() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Directionality(
+            textDirection: TextDirection
+                .ltr, // لضمان ظهور الوقت من اليسار لليمين بشكل صحيح h:m:s
+            child: Text(
+              formatDigitalTime(hours, min, sec),
+              style: TextStyle(
+                color:
+                    currentTheme == AppThemeEnum.hajTheme ||
+                        currentTheme == AppThemeEnum.hajTheme2
+                    ? hajTextColor
+                    : currentTheme == AppThemeEnum.newLightTheme
+                    ? whiteBgTextColor
+                    : Color(0xffeee8aa),
+                fontWeight: FontWeight.w900,
+                fontSize: 40, // حجم كبير للعداد
+                letterSpacing: 2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10), // مسافة صغيرة بين اسم الصلاة والوقت
+
           Text(
-            'الصلاة القادمة: ${parcePrayerName(nextPray)}',
+            // 'الشروق',
+            // 'العشاء',
+            nextPray,
             style: TextStyle(
-              color: currentTheme == AppThemeEnum.hajTheme||
-              currentTheme == AppThemeEnum.hajTheme2
+              color:
+                  currentTheme == AppThemeEnum.hajTheme ||
+                      currentTheme == AppThemeEnum.hajTheme2
                   ? hajTextColor
+                  : currentTheme == AppThemeEnum.newLightTheme
+                  ? whiteBgTextColor
                   : Color(0xffeee8aa),
               fontWeight: FontWeight.w900,
-              fontSize: 19,
-              height: 1,
-            ),
-          ),
-          Text(
-            ':يحين موعدها بإذن الله تعالى بعد',
-            style: TextStyle(
-              color: currentTheme == AppThemeEnum.hajTheme||
-              currentTheme == AppThemeEnum.hajTheme2
-                  ? hajTextColor
-                  : Color(0xffeee8aa),
-              fontWeight: FontWeight.w300,
-              fontSize: 16,
-              height: 1.2,
-            ),
-          ),
-
-          Directionality(
-            textDirection: TextDirection.rtl,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // عرض الساعات
-                if (hours > 0)
-                  Text(
-                    formatArabicTime(hours, "ساعة") +
-                        (min > 0 || sec > 0 ? " و " : ""),
-                    style: _timerStyle(),
-                  ),
-
-                // عرض الدقائق
-                if (min > 0)
-                  Text(
-                    formatArabicTime(min, "دقيقة") + (sec > 0 ? " و " : ""),
-                    style: _timerStyle(),
-                  ),
-
-                // عرض الثواني
-                if (sec > 0 ||
-                    (hours == 0 &&
-                        min == 0)) // بنعرض الثواني لو موجودة أو لو كله أصفار
-                  Text(formatArabicTime(sec, "ثانية"), style: _timerStyle()),
-              ],
+              fontSize: 22,
             ),
           ),
         ],
